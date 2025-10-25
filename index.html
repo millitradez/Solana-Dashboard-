@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Solana Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+  <link rel="icon" href="icon.png">
   <meta name="theme-color" content="#667eea">
   <style>
     body {
@@ -18,6 +19,7 @@
     .container { max-width: 1200px; margin: 0 auto; }
     header { text-align: center; color: white; margin-bottom: 30px; }
     h1 { font-size: 2em; margin-bottom: 10px; }
+    footer { text-align: center; color: white; margin-top: 30px; font-size: 0.9em; }
     .card {
       background: white;
       border-radius: 15px;
@@ -36,13 +38,21 @@
       width: 100%;
       cursor: pointer;
     }
+    .btn:active { transform: scale(0.98); }
     .hidden { display: none; }
+    .balance { font-size: 1.5em; font-weight: bold; color: #667eea; margin: 10px 0; }
     .wallet-address { font-family: monospace; font-size: 0.9em; color: #666; word-break: break-all; }
-    .alert {
-      padding: 15px; border-radius: 8px; margin-bottom: 20px; display: none;
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1em;
+      margin: 10px 0;
     }
-    .alert-success { background: #d4edda; color: #155724; }
-    .alert-error { background: #f8d7da; color: #721c24; }
+    .price { font-size: 2em; font-weight: bold; color: #667eea; margin: 10px 0; }
+    .change-up { color: green; font-weight: 600; }
+    .change-down { color: red; font-weight: 600; }
     .token-chip {
       display: inline-block;
       background: #f0f0f0;
@@ -51,11 +61,18 @@
       margin: 5px;
       cursor: pointer;
     }
-    .price { font-size: 2em; font-weight: bold; color: #667eea; }
-    .change-up { color: #28a745; }
-    .change-down { color: #dc3545; }
+    .alert {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    .alert-success { background: #d4edda; color: #155724; }
+    .alert-error { background: #f8d7da; color: #721c24; }
+    .alert-info { background: #d1ecf1; color: #0c5460; }
   </style>
 </head>
+
 <body>
   <div class="container">
     <header>
@@ -70,14 +87,14 @@
       <button id="connectBtn" class="btn">💎 Connect Coin98 Wallet</button>
       <div id="walletInfo" class="hidden">
         <p class="wallet-address" id="address"></p>
-        <p>Balance: <span id="balance">0</span> SOL</p>
+        <p class="balance">Balance: <span id="balance">0</span> SOL</p>
         <button id="disconnectBtn" class="btn">Disconnect</button>
       </div>
     </div>
 
     <div class="card">
       <h2>🔍 Token Search</h2>
-      <input type="text" id="tokenInput" placeholder="Enter Solana token mint address">
+      <input type="text" id="tokenInput" placeholder="Enter Solana token address">
       <button id="loadBtn" class="btn">Load Token</button>
       <div style="margin-top: 15px;">
         <span class="token-chip" data-addr="So11111111111111111111111111111111111111112">🟣 SOL</span>
@@ -91,6 +108,8 @@
       <p id="change"></p>
       <p id="tokenAddr" style="font-size: 0.8em; color: #666;"></p>
     </div>
+
+    <footer>Built by millitradez</footer>
   </div>
 
   <script>
@@ -105,22 +124,30 @@
       setTimeout(() => alert.style.display = 'none', 4000);
     }
 
+    // Connect Wallet
     document.getElementById('connectBtn').onclick = async () => {
       try {
-        if (window.coin98?.sol) wallet = window.coin98.sol;
-        else if (window.solana?.isPhantom) wallet = window.solana;
-        else { showAlert('⚠️ Please use Coin98 browser', 'error'); return; }
+        if ('coin98' in window && window.coin98?.sol) {
+          wallet = window.coin98.sol;
+          showAlert('✅ Coin98 Wallet detected', 'success');
+        } else if ('solana' in window) {
+          wallet = window.solana;
+          showAlert('✅ Phantom or Solflare detected', 'info');
+        } else {
+          showAlert('⚠️ Please open in Coin98 browser', 'error');
+          return;
+        }
 
         const resp = await wallet.connect();
-        addr = resp.publicKey?.toString();
-        document.getElementById('address').textContent = addr;
+        addr = resp.publicKey.toString();
+        document.getElementById('address').textContent = addr.slice(0, 8) + '...' + addr.slice(-8);
         document.getElementById('walletInfo').classList.remove('hidden');
         document.getElementById('connectBtn').classList.add('hidden');
 
         const conn = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'), 'confirmed');
         const balance = await conn.getBalance(new solanaWeb3.PublicKey(addr));
         document.getElementById('balance').textContent = (balance / 1e9).toFixed(4);
-        showAlert('✅ Connected!', 'success');
+        showAlert('✅ Wallet connected successfully', 'success');
       } catch (err) {
         console.error(err);
         showAlert('❌ Connection failed', 'error');
@@ -136,32 +163,32 @@
       showAlert('👋 Disconnected', 'info');
     };
 
+    // Token Price Fetch
     document.getElementById('loadBtn').onclick = async () => {
       const mint = document.getElementById('tokenInput').value.trim();
       if (!mint) return showAlert('Enter token mint address', 'error');
 
       try {
-        // Step 1: Get token list to map mint -> symbol
-        const listRes = await fetch('https://token.jup.ag/all');
-        const tokenList = await listRes.json();
-        const tokenInfo = tokenList.find(t => t.address === mint);
-        if (!tokenInfo) { showAlert('Token not found on Jupiter list', 'error'); return; }
-
-        // Step 2: Get price + change
-        const priceRes = await fetch(`https://price.jup.ag/v6/price?ids=${tokenInfo.symbol}`);
+        const priceRes = await fetch(`https://price.jup.ag/v6/price?mint=${mint}`);
         const priceData = await priceRes.json();
-        const data = priceData.data[tokenInfo.symbol];
 
-        document.getElementById('tokenName').textContent = `${tokenInfo.name} (${tokenInfo.symbol})`;
+        const data = Object.values(priceData.data)[0];
+        if (!data) {
+          showAlert('Token not found or not supported', 'error');
+          return;
+        }
+
+        document.getElementById('tokenName').textContent = data.name || 'Unknown Token';
         document.getElementById('price').textContent = `$${data.price.toFixed(4)}`;
+
         const changeEl = document.getElementById('change');
-        const change = data.priceChange24h;
+        const change = data.priceChange24h || 0;
         changeEl.textContent = `24h: ${change.toFixed(2)}%`;
         changeEl.className = change >= 0 ? 'change-up' : 'change-down';
 
         document.getElementById('tokenAddr').textContent = mint;
         document.getElementById('tokenCard').classList.remove('hidden');
-        showAlert('✅ Token loaded!', 'success');
+        showAlert('✅ Token info loaded!', 'success');
       } catch (err) {
         console.error(err);
         showAlert('❌ Error loading token info', 'error');
