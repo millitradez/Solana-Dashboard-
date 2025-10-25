@@ -1,320 +1,203 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solana Trading Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.91.4/lib/index.iife.min.js"></script>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #333;
-            min-height: 100vh;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: #ffffff;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-        }
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .wallet-section {
-            text-align: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-        .wallet-button {
-            background-color: #007bff;
-            color: white;
-            padding: 15px 30px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 18px;
-            transition: all 0.3s ease;
-        }
-        .wallet-button:hover {
-            background-color: #0056b3;
-            transform: translateY(-2px);
-        }
-        .wallet-button:active {
-            transform: translateY(0);
-        }
-        #walletStatus {
-            margin-top: 15px;
-            color: #6c757d;
-            font-size: 16px;
-            font-weight: 500;
-        }
-        .connected {
-            color: #28a745 !important;
-        }
-        .error-message {
-            color: #dc3545;
-            font-weight: bold;
-        }
-        .token-section {
-            margin-top: 30px;
-        }
-        .input-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .input-group input {
-            flex: 1;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            font-size: 16px;
-        }
-        .input-group button {
-            background-color: #28a745;
-            color: white;
-            padding: 12px 25px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        .token-info {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            display: none;
-        }
-        .token-info.show {
-            display: block;
-        }
-        .price {
-            font-size: 2em;
-            font-weight: bold;
-            color: #007bff;
-            margin: 10px 0;
-        }
-        .debug {
-            background: #fff3cd;
-            padding: 10px;
-            border-radius: 4px;
-            margin-top: 20px;
-            font-size: 12px;
-            word-break: break-all;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solana Dashboard</title>
+  <style>
+    body {
+      font-family: "Poppins", sans-serif;
+      background: linear-gradient(120deg, #2c3e50, #4ca1af);
+      color: #fff;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    h1 {
+      margin-top: 30px;
+      text-align: center;
+      color: #f1f1f1;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 25px;
+      margin-top: 30px;
+      width: 90%;
+      max-width: 450px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: none;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    #connect-wallet {
+      background: #27ae60;
+      color: white;
+      margin-bottom: 10px;
+    }
+
+    #connect-wallet:hover {
+      background: #219150;
+    }
+
+    #get-price {
+      background: #3498db;
+      color: white;
+    }
+
+    #get-price:hover {
+      background: #2980b9;
+    }
+
+    #wallet-status {
+      text-align: center;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    #result {
+      margin-top: 15px;
+      font-size: 20px;
+      text-align: center;
+      color: #ffcc00;
+    }
+
+    textarea {
+      width: 100%;
+      height: 150px;
+      border-radius: 6px;
+      border: none;
+      resize: none;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 14px;
+      margin-top: 15px;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🚀 Solana Trading Dashboard</h1>
-        
-        <div class="wallet-section">
-            <button class="wallet-button" id="walletBtn">Connect Wallet</button>
-            <p id="walletStatus">Initializing...</p>
-        </div>
+  <h1>💎 Solana Dashboard</h1>
+  <div class="container">
+    <button id="connect-wallet">🔗 Connect Coin98 Wallet</button>
+    <div id="wallet-status">Not Connected</div>
 
-        <div class="token-section">
-            <h2>Check Token Price</h2>
-            <div class="input-group">
-                <input type="text" id="tokenInput" placeholder="Enter token address" value="So11111111111111111111111111111111111111112">
-                <button id="priceBtn">Get Price</button>
-            </div>
-            <div class="token-info" id="tokenInfo">
-                <p class="price" id="priceDisplay">$0.00</p>
-                <p id="tokenDetails"></p>
-            </div>
-        </div>
+    <h2>Check Token Price</h2>
+    <input type="text" id="token-input" placeholder="Enter Solana token address" />
+    <button id="get-price">💰 Get Price</button>
 
-        <div class="debug" id="debugLog">Debug log will appear here...</div>
-    </div>
+    <div id="result">Awaiting Input...</div>
 
-    <script>
-        // Debug logger
-        function log(msg) {
-            const debugEl = document.getElementById('debugLog');
-            const timestamp = new Date().toLocaleTimeString();
-            debugEl.innerHTML += `<br>[${timestamp}] ${msg}`;
-            console.log(msg);
-        }
+    <h3>Debug Log</h3>
+    <textarea id="debug-log" readonly></textarea>
+  </div>
 
-        log('Script started');
+  <!-- 🚀 Improved Wallet Script -->
+  <script>
+  let walletAddress = null;
 
-        let wallet = null;
-        let publicKey = null;
-        let walletAddress = null;
+  function log(message) {
+    const box = document.getElementById('debug-log');
+    if (box) {
+      const time = new Date().toLocaleTimeString();
+      box.value += `[${time}] ${message}\n`;
+      box.scrollTop = box.scrollHeight;
+    }
+  }
 
-        // Connect wallet function
-        async function connectWallet() {
-            log('connectWallet() called');
-            
-            try {
-                // Check for Coin98
-                if (window.coin98 && window.coin98.sol) {
-                    log('Coin98 wallet detected!');
-                    wallet = window.coin98.sol;
-                } else if (window.solana) {
-                    log('Generic Solana wallet detected');
-                    wallet = window.solana;
-                } else {
-                    log('ERROR: No wallet found');
-                    document.getElementById('walletStatus').innerHTML = '<span class="error-message">No wallet detected</span>';
-                    return;
-                }
+  async function connectWallet() {
+    try {
+      log("🔍 Checking for Coin98 wallet...");
 
-                log('Attempting to connect...');
-                const response = await wallet.connect();
-                
-                // Handle different wallet response formats
-                if (response.publicKey) {
-                    publicKey = response.publicKey;
-                    // Check if it's already a string or needs conversion
-                    if (typeof publicKey === 'string') {
-                        walletAddress = publicKey;
-                    } else if (publicKey.toString) {
-                        walletAddress = publicKey.toString();
-                    } else if (publicKey.toBase58) {
-                        walletAddress = publicKey.toBase58();
-                    } else {
-                        throw new Error('Unable to convert publicKey to string');
-                    }
-                } else if (wallet.publicKey) {
-                    publicKey = wallet.publicKey;
-                    if (typeof publicKey === 'string') {
-                        walletAddress = publicKey;
-                    } else if (publicKey.toString) {
-                        walletAddress = publicKey.toString();
-                    } else if (publicKey.toBase58) {
-                        walletAddress = publicKey.toBase58();
-                    }
-                } else {
-                    throw new Error('No publicKey found in wallet response');
-                }
-                
-                log('Raw response: ' + JSON.stringify(response));
-                log('Public key type: ' + typeof publicKey);
-                log('Full address: ' + walletAddress);
-                
-                const short = walletAddress.slice(0, 4) + '...' + walletAddress.slice(-4);
-                
-                log('Connected! Address: ' + short);
-                document.getElementById('walletStatus').innerHTML = `<span class="connected">Connected: ${short}</span>`;
-                document.getElementById('walletBtn').textContent = 'Disconnect';
-                document.getElementById('walletBtn').style.backgroundColor = '#dc3545';
-                
-            } catch (err) {
-                log('ERROR: ' + err.message);
-                log('Error stack: ' + err.stack);
-                document.getElementById('walletStatus').innerHTML = '<span class="error-message">Failed: ' + err.message + '</span>';
-            }
-        }
+      if (!window.coin98 || !window.coin98.sol) {
+        alert("⚠️ Please open this page inside the Coin98 Browser.");
+        log("❌ Coin98 wallet not detected.");
+        return;
+      }
 
-        // Disconnect wallet
-        async function disconnectWallet() {
-            log('disconnectWallet() called');
-            try {
-                if (wallet && wallet.disconnect) {
-                    await wallet.disconnect();
-                }
-                publicKey = null;
-                walletAddress = null;
-                document.getElementById('walletStatus').textContent = 'Disconnected';
-                document.getElementById('walletBtn').textContent = 'Connect Wallet';
-                document.getElementById('walletBtn').style.backgroundColor = '#007bff';
-                log('Disconnected successfully');
-            } catch (err) {
-                log('Disconnect error: ' + err.message);
-            }
-        }
+      log("✅ Coin98 wallet detected. Requesting connection...");
 
-        // Check token price
-        async function checkPrice() {
-            log('checkPrice() called');
-            const tokenAddr = document.getElementById('tokenInput').value.trim();
-            
-            if (!tokenAddr) {
-                log('ERROR: No token address entered');
-                alert('Please enter a token address');
-                return;
-            }
+      const response = await window.coin98.sol.request({ method: 'sol_connect' });
 
-            log('Fetching price for: ' + tokenAddr);
-            document.getElementById('priceDisplay').textContent = 'Loading...';
-            document.getElementById('tokenInfo').classList.add('show');
+      if (response && response.publicKey) {
+        walletAddress = response.publicKey;
+        log(`✅ Connected to wallet: ${walletAddress}`);
+        document.getElementById('wallet-status').innerText = "✅ Wallet Connected";
+        document.getElementById('wallet-status').style.color = "limegreen";
+      } else {
+        log("❌ No publicKey found in wallet response.");
+        alert("Connection failed. Please approve wallet access inside Coin98.");
+      }
 
-            try {
-                const url = `https://price.jup.ag/v6/price?ids=${tokenAddr}`;
-                log('Calling: ' + url);
-                
-                const response = await fetch(url);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                log('Response received: ' + JSON.stringify(data));
-                
-                if (data.data && data.data[tokenAddr]) {
-                    const price = data.data[tokenAddr].price;
-                    log('Price: $' + price);
-                    document.getElementById('priceDisplay').textContent = '$' + price.toFixed(6);
-                    document.getElementById('tokenDetails').textContent = 'Token: ' + tokenAddr.slice(0, 8) + '...';
-                } else {
-                    log('ERROR: Token not found in response');
-                    log('Full response: ' + JSON.stringify(data));
-                    document.getElementById('priceDisplay').textContent = 'Not found';
-                    document.getElementById('tokenDetails').textContent = 'Token data not available';
-                }
-            } catch (err) {
-                log('ERROR fetching price: ' + err.message);
-                document.getElementById('priceDisplay').textContent = 'Error';
-                document.getElementById('tokenDetails').textContent = err.message;
-            }
-        }
+    } catch (error) {
+      log(`⚠️ Connection Error: ${error.message}`);
+      console.error(error);
+    }
+  }
 
-        // Set up button listeners
-        log('Setting up button listeners');
-        
-        document.getElementById('walletBtn').addEventListener('click', function() {
-            log('Wallet button clicked!');
-            if (publicKey) {
-                disconnectWallet();
-            } else {
-                connectWallet();
-            }
-        });
+  async function checkPrice() {
+    try {
+      if (!walletAddress) {
+        alert("⚠️ Please connect your Coin98 wallet first.");
+        log("⚠️ Cannot fetch price, wallet not connected.");
+        return;
+      }
 
-        document.getElementById('priceBtn').addEventListener('click', function() {
-            log('Price button clicked!');
-            checkPrice();
-        });
+      const tokenAddress = document.getElementById('token-input').value.trim();
+      if (!tokenAddress) {
+        alert("Enter a valid token address.");
+        return;
+      }
 
-        // Initialize
-        log('Page loaded, checking for wallet...');
-        setTimeout(() => {
-            if (window.coin98 && window.coin98.sol) {
-                log('Coin98 ready!');
-                document.getElementById('walletStatus').textContent = 'Ready to connect';
-            } else if (window.solana) {
-                log('Solana wallet ready!');
-                document.getElementById('walletStatus').textContent = 'Ready to connect';
-            } else {
-                log('No wallet detected');
-                document.getElementById('walletStatus').innerHTML = '<span class="error-message">No wallet detected. Open in Coin98 browser.</span>';
-            }
-        }, 500);
+      log(`🔎 Checking price for token: ${tokenAddress}`);
 
-        log('Setup complete');
-    </script>
+      // Example: Mock API (replace with real API later)
+      // Example using CoinGecko Solana token price endpoint
+      const res = await fetch(`https://api.coingecko.com/api/v3/simple/token_price/solana?contract_addresses=${tokenAddress}&vs_currencies=usd`);
+      const data = await res.json();
+
+      if (data && Object.keys(data).length > 0) {
+        const price = Object.values(data)[0].usd;
+        document.getElementById('result').innerText = `💰 Price: $${price}`;
+        log(`✅ Price fetched successfully: $${price}`);
+      } else {
+        document.getElementById('result').innerText = "⚠️ Token not found";
+        log("❌ Token not found in API response.");
+      }
+
+    } catch (err) {
+      log(`❌ Error fetching token price: ${err.message}`);
+      document.getElementById('result').innerText = "❌ Load failed";
+    }
+  }
+
+  window.onload = function() {
+    log("🚀 Page loaded. Setting up...");
+    document.getElementById('connect-wallet').onclick = connectWallet;
+    document.getElementById('get-price').onclick = checkPrice;
+    log("✅ Ready for wallet connection.");
+  };
+  </script>
 </body>
 </html>
