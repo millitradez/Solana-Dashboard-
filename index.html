@@ -5,96 +5,133 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Solana Dashboard</title>
   <style>
-    body { font-family: Arial, sans-serif; background: linear-gradient(180deg, #002a5c, #004080); color: white; text-align: center; padding: 30px; }
-    button { background-color: #00c46b; color: white; border: none; border-radius: 5px; padding: 10px 20px; margin: 10px; cursor: pointer; font-size: 16px; }
-    input { width: 80%; padding: 10px; margin: 10px; border-radius: 5px; border: none; font-size: 16px; }
-    .log-box { background: rgba(0,0,0,0.4); border-radius: 8px; padding: 15px; margin-top: 20px; text-align: left; font-family: monospace; }
+    body {
+      background: linear-gradient(135deg, #002b55, #003c80);
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 30px;
+    }
+    h1 { margin-bottom: 10px; }
+    input {
+      padding: 10px;
+      width: 80%;
+      max-width: 400px;
+      margin: 10px 0;
+      border-radius: 5px;
+      border: none;
+    }
+    button {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 5px;
+      color: white;
+      background-color: #00c853;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 8px;
+    }
+    button:disabled {
+      background-color: #777;
+      cursor: not-allowed;
+    }
+    #status, #tokenStatus {
+      margin-top: 15px;
+      font-size: 16px;
+    }
+    #log {
+      background: rgba(0,0,0,0.4);
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 20px;
+      text-align: left;
+      font-family: monospace;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+      overflow-y: auto;
+      max-height: 200px;
+    }
   </style>
 </head>
 <body>
-  <h2>🌐 Solana Dashboard</h2>
-  <button id="connectButton">🔌 Connect Wallet</button>
-  <div id="status">Not connected ❌</div>
+  <h1>🌐 Solana Dashboard</h1>
+
+  <button id="connectBtn">Connect Wallet</button>
+  <div id="status">Checking environment...</div>
 
   <h3>Check Token Price</h3>
-  <input id="tokenInput" placeholder="Enter Solana token address" />
-  <br />
-  <button onclick="getPrice()">💰 Get Price</button>
-  <div>
-    <button onclick="fillToken('So11111111111111111111111111111111111111112')">SOL</button>
-    <button onclick="fillToken('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v')">USDC</button>
-    <button onclick="fillToken('DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjr9mXAdrsXgPa')">BONK</button>
-  </div>
-  <div id="priceOutput"></div>
+  <input type="text" id="tokenAddress" placeholder="Enter Solana token address" />
+  <button id="priceBtn">💰 Get Price</button>
+  <div id="tokenStatus"></div>
 
-  <div class="log-box" id="log"></div>
+  <div id="log"></div>
 
   <script>
     const logBox = document.getElementById('log');
-    const statusDiv = document.getElementById('status');
-
-    function log(msg) {
+    const log = (msg) => {
       const time = new Date().toLocaleTimeString();
       logBox.innerHTML += `[${time}] ${msg}<br>`;
       logBox.scrollTop = logBox.scrollHeight;
+    };
+
+    const connectBtn = document.getElementById('connectBtn');
+    const status = document.getElementById('status');
+    const priceBtn = document.getElementById('priceBtn');
+    const tokenStatus = document.getElementById('tokenStatus');
+
+    log("Page loaded. Setting up environment check...");
+
+    // Detect if Coin98 wallet is injected
+    if (window.coin98) {
+      status.innerHTML = "✅ Detected Coin98 Wallet";
+      log("Coin98 Wallet detected!");
+    } else {
+      status.innerHTML = "⚠️ Please open this page inside the Coin98 Wallet browser.";
+      connectBtn.disabled = true;
+      priceBtn.disabled = false;
+      log("Coin98 not found — wallet features disabled.");
     }
 
-    let wallet = null;
-
-    async function connectWallet() {
+    connectBtn.onclick = async () => {
       try {
-        log('Requesting wallet connection...');
-        statusDiv.innerText = '🔄 Connecting...';
-        if (window.coin98 && window.coin98.sol) {
-          wallet = window.coin98.sol;
-          const res = await wallet.connect();
-          if (res.publicKey) {
-            log(`Connected: ${res.publicKey}`);
-            statusDiv.innerText = `✅ Connected: ${res.publicKey.slice(0,6)}...`;
-          } else {
-            throw new Error('No public key returned');
-          }
-        } else {
-          throw new Error('Coin98 wallet not detected');
-        }
-      } catch (e) {
-        log(`❌ Connection failed: ${e.message}`);
-        statusDiv.innerText = '❌ Connection rejected';
+        status.innerHTML = "🔄 Requesting wallet connection...";
+        log("Requesting wallet connection...");
+        await window.coin98.sol.request({ method: "connect" });
+        status.innerHTML = "✅ Wallet connected successfully!";
+        log("Wallet connection approved.");
+      } catch (err) {
+        status.innerHTML = "❌ Connection rejected or failed";
+        log("Connection rejected or failed: " + err.message);
       }
-    }
+    };
 
-    async function getPrice() {
-      const address = document.getElementById('tokenInput').value.trim();
-      if (!address) {
-        log('Please enter a token address.');
+    priceBtn.onclick = async () => {
+      const tokenAddr = document.getElementById("tokenAddress").value.trim();
+      if (!tokenAddr) {
+        tokenStatus.innerHTML = "⚠️ Please enter a token address.";
         return;
       }
-      log(`Fetching price for token: ${address}`);
 
-      const url = `https://api.coingecko.com/api/v3/simple/token_price/solana?contract_addresses=${address}&vs_currencies=usd`;
+      log("Fetching price for token: " + tokenAddr);
+
       try {
-        const res = await fetch(url);
-        const data = await res.json();
-        const price = data[address.toLowerCase()]?.usd;
-        if (price) {
-          document.getElementById('priceOutput').innerText = `💵 Price: $${price}`;
-          log(`✅ Token price: $${price}`);
+        const resp = await fetch(`https://api.coingecko.com/api/v3/simple/token_price/solana?contract_addresses=${tokenAddr}&vs_currencies=usd`);
+        const data = await resp.json();
+
+        if (data[tokenAddr.toLowerCase()]) {
+          const price = data[tokenAddr.toLowerCase()].usd;
+          tokenStatus.innerHTML = `💵 Token Price: $${price}`;
+          log("Price fetched successfully: $" + price);
         } else {
-          document.getElementById('priceOutput').innerText = '❌ Token not found';
-          log('Token not found on CoinGecko.');
+          tokenStatus.innerHTML = "❌ Token not found.";
+          log("Token not found.");
         }
       } catch (err) {
-        log(`Error fetching price: ${err.message}`);
+        tokenStatus.innerHTML = "❌ Error fetching token price.";
+        log("Fetch error: " + err.message);
       }
-    }
-
-    function fillToken(address) {
-      document.getElementById('tokenInput').value = address;
-      log(`Auto-filled token: ${address}`);
-    }
-
-    document.getElementById('connectButton').onclick = connectWallet;
-    log('Page loaded. Ready for wallet connection.');
+    };
   </script>
 </body>
 </html>
