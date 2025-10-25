@@ -1,55 +1,50 @@
-// --- Coin98 & Dexscreener Integration --- //
+// Check if Coin98 Wallet is available
+const connectWalletBtn = document.getElementById("connectWallet");
+const walletAddressDiv = document.getElementById("walletAddress");
+const balanceDiv = document.getElementById("balance");
+const solDataDiv = document.getElementById("solData");
 
-let walletConnected = false;
+let connection;
+let publicKey;
 
-// Detect Coin98 provider
-async function detectWallet() {
-  if (window.coin98) {
-    console.log("Coin98 detected ✅");
-  } else {
-    alert("Please open in Coin98 browser or install Coin98 wallet.");
-  }
-}
-
-// Connect wallet
 async function connectWallet() {
   try {
-    await window.coin98.sol.request({ method: "connect" });
-    walletConnected = true;
-    const accounts = await window.coin98.sol.request({ method: "getAccounts" });
-    document.getElementById("wallet-status").innerText = 
-      `Connected: ${accounts[0].slice(0, 4)}...${accounts[0].slice(-4)}`;
-  } catch (err) {
-    console.error("Wallet connection failed:", err);
-  }
-}
+    if (!window.solana || !window.solana.isCoin98) {
+      alert("Please install or open Coin98 Wallet.");
+      return;
+    }
 
-// Load DexScreener data
-async function loadDexData(mint) {
-  try {
-    const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`);
-    const data = await res.json();
-    const token = data.pairs?.[0];
-    if (!token) throw new Error("Token not found.");
+    const resp = await window.solana.connect();
+    publicKey = resp.publicKey.toString();
+    walletAddressDiv.innerHTML = `🔗 Connected: ${publicKey.substring(0, 5)}...${publicKey.slice(-4)}`;
 
-    document.getElementById("token-name").innerText = token.baseToken.name;
-    document.getElementById("token-price").innerText = `$${token.priceUsd}`;
-    document.getElementById("chart-frame").src = `https://dexscreener.com/solana/${mint}?embed=1`;
+    connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl("mainnet-beta"), "confirmed");
+    await getBalance();
+
+    solDataDiv.style.display = "block";
   } catch (err) {
-    document.getElementById("token-price").innerText = "⚠️ Error loading price";
     console.error(err);
+    alert("Connection failed. Try again.");
   }
 }
 
-// Execute buy or sell
-async function executeTrade(type) {
-  if (!walletConnected) return alert("Connect your Coin98 wallet first.");
-
-  const mint = document.getElementById("token-input").value.trim();
-  const amount = document.getElementById("amount").value;
-  alert(`${type} ${amount} SOL worth of ${mint} — confirm in wallet.`);
-  // Placeholder — your Jupiter trade call would go here
+async function getBalance() {
+  try {
+    const balanceLamports = await connection.getBalance(new solanaWeb3.PublicKey(publicKey));
+    const balanceSol = balanceLamports / solanaWeb3.LAMPORTS_PER_SOL;
+    balanceDiv.textContent = balanceSol.toFixed(3);
+  } catch (err) {
+    balanceDiv.textContent = "Error";
+    console.error("Error getting balance:", err);
+  }
 }
 
-// Auto detect wallet
-window.addEventListener("load", detectWallet);
+document.getElementById("buyBtn").addEventListener("click", () => {
+  alert("Buy SOL coming soon via Coin98 API");
+});
+
+document.getElementById("sellBtn").addEventListener("click", () => {
+  alert("Sell SOL coming soon via Coin98 API");
+});
+
+connectWalletBtn.addEventListener("click", connectWallet);
