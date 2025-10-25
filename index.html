@@ -3,138 +3,164 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🚀 Solana Dashboard</title>
+  <title>🚀 Solana Dashboard | Coin98 Compatible</title>
   <style>
     body {
-      font-family: 'Poppins', sans-serif;
-      background: linear-gradient(135deg, #6c63ff, #3b82f6);
-      color: #222;
+      font-family: "Poppins", sans-serif;
+      text-align: center;
+      background: linear-gradient(180deg, #5b00ff, #8a2be2);
+      color: white;
       margin: 0;
-      padding: 0;
-      text-align: center;
-    }
-
-    h1 {
-      color: white;
-      margin-top: 40px;
-    }
-
-    .container {
-      background: white;
-      border-radius: 15px;
-      width: 90%;
-      max-width: 400px;
-      margin: 30px auto;
       padding: 20px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
-
-    button {
-      background: #00c6a9;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 12px 20px;
-      font-size: 16px;
-      cursor: pointer;
-      transition: 0.3s;
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 5px;
     }
-
-    button:hover {
-      background: #00a78f;
-    }
-
-    input {
+    .card {
+      background: white;
+      color: #222;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px auto;
       width: 90%;
+      max-width: 420px;
+      box-shadow: 0px 3px 12px rgba(0, 0, 0, 0.2);
+    }
+    button {
+      background: linear-gradient(90deg, #00bcd4, #00c6ff);
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 1rem;
+      margin-top: 10px;
+      width: 100%;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    input {
+      width: 100%;
       padding: 10px;
-      margin: 12px 0;
+      border-radius: 8px;
       border: 1px solid #ccc;
-      border-radius: 8px;
-      text-align: center;
+      margin-bottom: 10px;
     }
-
-    .error, .success {
-      background: #ffeaea;
-      color: #d93025;
+    .status {
+      margin: 10px 0;
       padding: 10px;
       border-radius: 8px;
-      margin-bottom: 10px;
-      display: none;
+      font-weight: 500;
     }
-
     .success {
-      background: #e8fff3;
-      color: #0a8f36;
+      background: #d4edda;
+      color: #155724;
     }
-
-    #wallet-status {
-      font-size: 14px;
-      color: #333;
-      margin-top: 8px;
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .token-buttons button {
+      width: 45%;
+      margin: 5px;
     }
   </style>
 </head>
 <body>
-
   <h1>🚀 Solana Dashboard</h1>
-  <p style="color:white;">Coin98 Compatible</p>
+  <p>Coin98 Compatible</p>
 
-  <div id="error-box" class="error">❌ Connection failed</div>
-  <div id="success-box" class="success">✅ Wallet connected</div>
+  <div id="status" class="status error" style="display:none;"></div>
 
-  <div class="container">
+  <div class="card">
     <h2>💼 Wallet</h2>
-    <button id="connect-wallet">🔷 Connect Coin98 Wallet</button>
-    <p id="wallet-status">Detecting wallet...</p>
+    <button id="connectBtn">💎 Connect Coin98 Wallet</button>
+    <div id="walletInfo"></div>
   </div>
 
-  <div class="container">
+  <div class="card">
     <h2>🔍 Token Search</h2>
-    <input type="text" id="token-address" placeholder="Enter Solana token address" />
-    <button id="load-token">Load Token</button>
+    <input id="tokenAddress" placeholder="Enter Solana token address" />
+    <button id="loadTokenBtn">Load Token</button>
+    <div id="tokenInfo" style="margin-top:10px;"></div>
+    <div class="token-buttons">
+      <button>🟣 SOL</button>
+      <button>💵 USDC</button>
+    </div>
   </div>
-
-  <div class="container">
-    <button>🟣 SOL</button>
-    <button>💵 USDC</button>
-  </div>
-
-  <!-- Coin98 SDK -->
-  <script src="https://unpkg.com/@coin98/wallet-adapter/dist/coin98-wallet-adapter.min.js"></script>
 
   <script>
-    async function connectCoin98() {
-      const errorBox = document.getElementById("error-box");
-      const successBox = document.getElementById("success-box");
-      const status = document.getElementById("wallet-status");
-      errorBox.style.display = "none";
-      successBox.style.display = "none";
+    // --- WALLET CONNECTION ---
+    const connectBtn = document.getElementById("connectBtn");
+    const walletInfo = document.getElementById("walletInfo");
+    const statusDiv = document.getElementById("status");
 
-      if (window.coin98 && window.coin98.sol) {
-        try {
-          await window.coin98.sol.connect();
-          const accounts = await window.coin98.sol.request({ method: "sol_accounts" });
-          const wallet = accounts[0];
-          status.innerText = "✅ Connected: " + wallet;
-          successBox.style.display = "block";
-        } catch (err) {
-          status.innerText = "❌ Connection failed: " + err.message;
-          errorBox.style.display = "block";
-        }
-      } else {
-        status.innerText = "⚠️ Coin98 not detected — open in Coin98 browser";
-        errorBox.style.display = "block";
+    async function connectWallet() {
+      if (!window.coin98 || !window.coin98.sol) {
+        statusDiv.style.display = "block";
+        statusDiv.className = "status error";
+        statusDiv.textContent = "❌ Coin98 Wallet not detected. Please open in Coin98 browser.";
+        return;
+      }
+      try {
+        const resp = await window.coin98.sol.request({ method: "connect" });
+        const account = resp.publicKey || resp;
+        walletInfo.innerHTML = `✅ <b>Connected:</b> ${account}`;
+        statusDiv.style.display = "block";
+        statusDiv.className = "status success";
+        statusDiv.textContent = "✅ Wallet connected";
+        console.log("Wallet:", resp);
+      } catch (err) {
+        console.error(err);
+        statusDiv.style.display = "block";
+        statusDiv.className = "status error";
+        statusDiv.textContent = "❌ Connection failed";
       }
     }
 
-    document.getElementById("connect-wallet").addEventListener("click", connectCoin98);
+    connectBtn.addEventListener("click", connectWallet);
 
-    document.addEventListener("DOMContentLoaded", () => {
-      const status = document.getElementById("wallet-status");
-      if (window.coin98 && window.coin98.sol) {
-        status.innerText = "🟢 Coin98 wallet detected";
-      } else {
-        status.innerText = "⚠️ Open this page in the Coin98 in-app browser to connect";
+    // --- TOKEN INFO FETCH ---
+    document.getElementById("loadTokenBtn").addEventListener("click", async () => {
+      const tokenAddress = document.getElementById("tokenAddress").value.trim();
+      const tokenInfoDiv = document.getElementById("tokenInfo");
+      tokenInfoDiv.innerHTML = "";
+
+      if (!tokenAddress) {
+        tokenInfoDiv.innerHTML = "⚠️ Please enter a token address.";
+        return;
+      }
+
+      tokenInfoDiv.innerHTML = "⏳ Fetching token info...";
+
+      // Try primary API first
+      const mainURL = `https://api.solscan.io/account?address=${tokenAddress}`;
+      // Fallback with CORS proxy (to work on GitHub Pages)
+      const proxyURL = `https://corsproxy.io/?${encodeURIComponent(mainURL)}`;
+
+      try {
+        let response = await fetch(mainURL);
+        if (!response.ok) response = await fetch(proxyURL);
+        const data = await response.json();
+        console.log("Token info:", data);
+
+        if (!data.data) {
+          tokenInfoDiv.innerHTML = "❌ Token not found or invalid address.";
+          return;
+        }
+
+        const { lamports, owner, executable } = data.data;
+        tokenInfoDiv.innerHTML = `
+          ✅ <b>Token Loaded</b><br>
+          <b>Owner:</b> ${owner || "N/A"}<br>
+          <b>Lamports:</b> ${lamports || "N/A"}<br>
+          <b>Executable:</b> ${executable ? "Yes" : "No"}
+        `;
+      } catch (err) {
+        console.error("Token fetch error:", err);
+        tokenInfoDiv.innerHTML = "❌ Error loading token info.";
       }
     });
   </script>
