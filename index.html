@@ -1,362 +1,224 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Solana Dashboard — Coin98</title>
+  <title>Solana RPC Debugger</title>
   <style>
-    :root{--accent:#00d4aa;--bg1:#6b46c1;--bg2:#9f7aea}
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;margin:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:#fff;min-height:100vh}
-    .wrap{max-width:760px;margin:24px auto;padding:18px}
-    header{text-align:center;margin-bottom:18px}
-    h1{margin:6px 0;font-size:28px}
-    p.lead{margin:0;color:rgba(255,255,255,.9)}
-    .card{background:#fff;color:#222;border-radius:14px;padding:18px;margin:18px 0;box-shadow:0 10px 30px rgba(0,0,0,.18)}
-    .btn{background:linear-gradient(90deg,var(--accent),#00b894);border:none;color:#fff;padding:12px 16px;border-radius:10px;font-weight:700;cursor:pointer;width:100%}
-    .muted{color:#666;font-size:14px}
-    input[type="text"]{width:100%;padding:12px;border-radius:10px;border:1px solid #e6e6e6;font-size:15px}
-    .small{font-size:13px;color:#666}
-    .result-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
-    .chip{background:#f5f5f5;padding:8px 12px;border-radius:999px;color:#333}
-    .ok{background:#d4edda;color:#155724;padding:10px;border-radius:8px}
-    .err{background:#f8d7da;color:#721c24;padding:10px;border-radius:8px}
-    code{background:#f3f4f6;padding:4px 6px;border-radius:6px;font-size:13px}
-    pre.debug{background:#0b1220;color:#d6f8f1;padding:10px;border-radius:8px;overflow:auto;max-height:240px}
+    body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:#f7fafc; color:#0f172a; padding:20px; }
+    .container { max-width:980px; margin:0 auto; background:#fff; border-radius:8px; padding:20px; box-shadow:0 6px 20px rgba(2,6,23,0.08); }
+    h1 { font-size:20px; margin:0 0 12px 0; }
+    label { display:block; margin-top:10px; font-weight:600; font-size:13px; }
+    input[type=text], input[type=url], textarea, select { width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:6px; margin-top:6px; box-sizing:border-box; }
+    button { margin-top:12px; padding:10px 14px; border:0; background:#0ea5a4; color:white; border-radius:6px; cursor:pointer; }
+    button.secondary { background:#64748b; }
+    .row { display:flex; gap:12px; margin-top:12px; }
+    .col { flex:1; }
+    pre { background:#081226; color:#cfe7ff; padding:12px; border-radius:6px; overflow:auto; max-height:360px; }
+    .muted { color:#475569; font-size:13px; }
+    .hint { margin-top:8px; font-size:13px; color:#d97706; }
+    .field-inline { display:flex; gap:8px; align-items:center; margin-top:8px; }
+    .small { font-size:13px; color:#334155; }
+    .success { color:#065f46; }
+    .error { color:#b91c1c; }
+    .panel { border:1px dashed #e2e8f0; padding:10px; border-radius:6px; margin-top:12px; background:#fcfeff; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>🚀 Solana Dashboard</h1>
-      <p class="lead">Coin98-only · token mint/account lookup · balances</p>
-    </header>
+  <div class="container">
+    <h1>Solana RPC Debugger</h1>
+    <div class="muted">Quickly test getParsedAccountInfo and getTokenSupply and capture provider errors (403, rate limits, CORS).</div>
 
-    <div id="banner" class="card" style="text-align:center;">
-      <div id="banner-msg" class="muted">Open inside the Coin98 browser and connect your wallet.</div>
+    <label for="rpcUrl">RPC URL</label>
+    <input id="rpcUrl" type="url" placeholder="https://example-rpc.com/ (replace API key part with &lt;REDACTED&gt;)" value="https://api.mainnet-beta.solana.com/">
+
+    <label for="apiKey">API key (optional)</label>
+    <input id="apiKey" type="text" placeholder="API key (if your provider requires one)">
+
+    <div class="field-inline">
+      <input id="useProxy" type="checkbox"><label for="useProxy" class="small">Use local proxy endpoint (/rpc-proxy) — recommended for browser calls so you don't expose API keys</label>
     </div>
 
-    <div class="card">
-      <h3>💼 Wallet</h3>
-      <button id="connectBtn" class="btn">💎 Connect Coin98 Wallet</button>
-      <div style="margin-top:12px">
-        <div id="walletStatus" class="small muted">Not connected</div>
-        <div id="walletAddr" style="margin-top:8px;font-family:monospace"></div>
+    <label for="method">Method</label>
+    <select id="method">
+      <option value="getParsedAccountInfo">getParsedAccountInfo</option>
+      <option value="getTokenSupply">getTokenSupply</option>
+    </select>
+
+    <label for="address">Account / Mint address</label>
+    <input id="address" type="text" placeholder="Enter account or mint address (base58)">
+
+    <div class="row">
+      <div class="col">
+        <button id="callBtn">Send RPC Request</button>
+        <button id="curlBtn" class="secondary">Show curl command</button>
+      </div>
+      <div class="col">
+        <div id="status" class="small">Ready.</div>
       </div>
     </div>
 
-    <div class="card">
-      <h3>🔍 Token lookup (mint or token account)</h3>
-      <input id="tokenInput" type="text" placeholder="Paste mint address or token account address" />
-      <div style="height:12px"></div>
-      <button id="lookupBtn" class="btn">Load token info</button>
-
-      <div id="tokenResult" style="margin-top:14px"></div>
+    <div class="panel">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <strong>Debug log</strong>
+        <div class="small muted">Shows requests, headers and raw responses</div>
+      </div>
+      <pre id="log">{}</pre>
     </div>
 
-    <div class="card">
-      <h3>🐞 Debug output</h3>
-      <div class="small muted">Provider & network debug logs (use when troubleshooting)</div>
-      <pre id="debugOut" class="debug"></pre>
+    <div class="panel" id="hintPanel" style="display:none;">
+      <strong>Diagnostic hints</strong>
+      <div id="hints" class="small"></div>
     </div>
-
-    <footer style="text-align:center;color:rgba(255,255,255,.9);margin-top:8px">
-      Built by millitradez — Coin98
-    </footer>
   </div>
 
   <script>
-  // ---------- Helper UI ----------
-  const bannerMsg = document.getElementById('banner-msg');
-  const connectBtn = document.getElementById('connectBtn');
-  const walletStatus = document.getElementById('walletStatus');
-  const walletAddrEl = document.getElementById('walletAddr');
-  const lookupBtn = document.getElementById('lookupBtn');
-  const tokenInput = document.getElementById('tokenInput');
-  const tokenResult = document.getElementById('tokenResult');
-  const debugOut = document.getElementById('debugOut');
+    // Utility: exponential backoff retry
+    async function retryWithBackoff(fn, tries = 3, baseDelay = 400) {
+      let attempt = 0;
+      while (attempt < tries) {
+        try {
+          return await fn();
+        } catch (err) {
+          attempt++;
+          if (attempt >= tries) throw err;
+          const delay = baseDelay * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 100);
+          await new Promise(r => setTimeout(r, delay));
+        }
+      }
+    }
 
-  function showBanner(text, type='info'){
-    bannerMsg.textContent = text;
-    bannerMsg.style.color = (type==='err') ? '#ffdddd' : (type==='ok' ? '#d4ffea' : 'rgba(255,255,255,.9)');
-  }
-  function showResult(html, ok=false){
-    tokenResult.innerHTML = html;
-    tokenResult.className = ok ? 'ok' : 'err';
-  }
-  function appendDebug(...args){
-    try {
-      const lines = args.map(a => {
-        if(typeof a === 'string') return a;
-        try { return JSON.stringify(a, null, 2); } catch(e){ return String(a); }
-      });
-      debugOut.textContent = debugOut.textContent + lines.join(' ') + '\n\n';
-      debugOut.scrollTop = debugOut.scrollHeight;
-      console.debug(...args);
-    } catch(e){ console.debug('debug append error', e); }
-  }
+    function log(obj) {
+      const el = document.getElementById('log');
+      const now = new Date().toISOString();
+      const prev = el.textContent || '';
+      el.textContent = `${now} — ${typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2)}\n\n` + prev;
+    }
 
-  // ---------- Solana RPC helper ----------
-  // If your RPC provider requires an API key or is rejecting with "invalid token",
-  // try switching to a public RPC (for testing) such as https://rpc.ankr.com/solana
-  const RPC = "https://api.mainnet-beta.solana.com";
-  // const RPC = "https://rpc.ankr.com/solana"; // alternative for testing
+    function showHints(messages) {
+      const panel = document.getElementById('hintPanel');
+      const hints = document.getElementById('hints');
+      hints.innerHTML = messages.map(m => `<div>${m}</div>`).join('');
+      panel.style.display = 'block';
+    }
 
-  async function rpc(method, params){
-    const payload = { jsonrpc: "2.0", id: 1, method, params };
-    const res = await fetch(RPC, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify(payload)
+    async function sendRpc(rpcUrl, apiKey, method, params, useProxy) {
+      const requestBody = { jsonrpc: "2.0", id: 1, method, params };
+      log({ stage: 'request', rpcUrl: useProxy ? '/rpc-proxy' : rpcUrl, body: requestBody, apiKeyProvided: !!apiKey, useProxy });
+
+      // choose target and headers
+      if (useProxy) {
+        // Browser -> your server proxy endpoint that will forward the request and attach apiKey server-side.
+        // Proxy payload: { rpcUrl, apiKey, body } -- you must implement /rpc-proxy on your server.
+        const resp = await fetch('/rpc-proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rpcUrl, apiKey, body: requestBody })
+        });
+        const text = await resp.text();
+        log({ stage: 'proxy-response-raw', status: resp.status, body: text });
+        if (!resp.ok) throw new Error(`Proxy returned HTTP ${resp.status}: ${text}`);
+        return JSON.parse(text);
+      } else {
+        // Direct call to RPC provider
+        const headers = { 'Content-Type': 'application/json' };
+        // Many providers accept x-api-key or Authorization: Bearer <key> — adjust if needed.
+        if (apiKey) headers['x-api-key'] = apiKey;
+        const resp = await fetch(rpcUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(requestBody)
+        });
+        const text = await resp.text();
+        log({ stage: 'response-raw', status: resp.status, body: text });
+        if (!resp.ok) {
+          // throw with enough context
+          const err = new Error(`Network error ${resp.status} — response: ${text}`);
+          err.status = resp.status;
+          err.body = text;
+          throw err;
+        }
+        return JSON.parse(text);
+      }
+    }
+
+    document.getElementById('callBtn').addEventListener('click', async () => {
+      const rpcUrl = document.getElementById('rpcUrl').value.trim();
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const method = document.getElementById('method').value;
+      const addr = document.getElementById('address').value.trim();
+      const useProxy = document.getElementById('useProxy').checked;
+      const statusEl = document.getElementById('status');
+      document.getElementById('hintPanel').style.display = 'none';
+
+      if (!rpcUrl) { statusEl.textContent = 'RPC URL required'; return; }
+      if (!addr) { statusEl.textContent = 'Address required'; return; }
+
+      // build params depending on method
+      let params;
+      if (method === 'getParsedAccountInfo') {
+        params = [addr, { encoding: "jsonParsed" }];
+      } else if (method === 'getTokenSupply') {
+        // For token supply we need the mint address — user should supply the mint here
+        params = [addr];
+      } else {
+        params = [addr];
+      }
+
+      statusEl.textContent = 'Sending request...';
+      try {
+        const result = await retryWithBackoff(() => sendRpc(rpcUrl, apiKey, method, params, useProxy), 3);
+        log({ stage: 'response-json', result });
+        statusEl.innerHTML = '<span class="success">Success — see debug log</span>';
+        // detect common provider-side 403 message inside result
+        if (result && result.error && result.error.code === 403) {
+          showHints([
+            `Provider returned JSON-RPC error 403: ${result.error.message || JSON.stringify(result.error)}`,
+            'Common causes: invalid/missing API key, project suspended/quota exceeded, IP allowlist, or provider returns 403 for rate-limit or blocked requests.',
+            'If you are calling from a browser, consider using the proxy option to keep API keys secret and avoid CORS issues.',
+            'Try the same RPC call with curl/server to see if it is a browser/CORS issue.'
+          ]);
+        } else if (typeof result === 'object' && result.error) {
+          showHints([`RPC returned error: ${JSON.stringify(result.error)}`]);
+        }
+      } catch (err) {
+        log({ stage: 'exception', message: err.message, status: err.status || '', body: err.body || '' });
+        statusEl.innerHTML = `<span class="error">Error: ${err.message}</span>`;
+        // heuristics for 403 in error text
+        const body = (err.body || '') + ' ' + (err.message || '');
+        if (body.includes('"code": 403') || body.includes('Access forbidden') || (err.status === 403)) {
+          showHints([
+            'Detected 403/Access forbidden from the RPC provider.',
+            'Checklist:',
+            '- Confirm the RPC URL is correct and for the intended network (mainnet-beta/testnet).',
+            "- Ensure the provider requires an API key and that you included it in the expected header or query param (check provider docs).",
+            '- Check provider dashboard for project quota/plan and IP allowlist settings.',
+            '- If calling from browser, test the same call from server/curl to rule out CORS.',
+            '- If you rely on API key, do NOT expose it in client-side code; use a proxy endpoint like /rpc-proxy that attaches the key server-side.'
+          ]);
+        } else {
+          showHints(['Request failed. See debug log above for the raw response.']);
+        }
+      }
     });
 
-    // read text to make sure we can display raw response when provider replies with
-    // a non-json or application level error (like "invalid token")
-    const text = await res.text();
-    let body = null;
-    try { body = JSON.parse(text); } catch(e){ body = null; }
+    document.getElementById('curlBtn').addEventListener('click', () => {
+      const rpcUrl = document.getElementById('rpcUrl').value.trim();
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const method = document.getElementById('method').value;
+      const addr = document.getElementById('address').value.trim();
+      if (!rpcUrl || !addr) { alert('RPC URL and address required for curl preview'); return; }
+      let params;
+      if (method === 'getParsedAccountInfo') params = [addr, { encoding: "jsonParsed" }];
+      else params = [addr];
+      const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }, null, 2);
+      let curl = `curl -s -X POST "${rpcUrl}" -H "Content-Type: application/json" \\\n  -d '${body.replace(/'/g, "\\'")}'`;
+      if (apiKey) curl += `\n# If your provider expects x-api-key header:\n# -H "x-api-key: ${apiKey}"`;
+      alert(curl);
+    });
 
-    if(!res.ok) {
-      const msg = `Network error ${res.status} ${res.statusText} — response: ${text}`;
-      appendDebug({rpc_error_network: msg});
-      throw new Error(msg);
-    }
-    if(body && body.error) {
-      const msg = `RPC error: ${body.error.code || ''} ${body.error.message || JSON.stringify(body.error)}`;
-      appendDebug({rpc_error_body: body});
-      throw new Error(msg);
-    }
-    if(!body) {
-      // not JSON — surface raw text
-      appendDebug({rpc_unexpected_text: text});
-      throw new Error('RPC returned non-JSON response: ' + text);
-    }
-    return body.result;
-  }
-
-  // ---------- Wallet (Coin98-only) ----------
-  let coin98Wallet = null;
-  let connectedPubkey = null;
-
-  // waits up to ~5s for injection
-  async function waitForCoin98(timeoutMs=5000){
-    const start = Date.now();
-    while(Date.now() - start < timeoutMs){
-      if(window.coin98 && (window.coin98.sol || window.coin98.provider)) return window.coin98;
-      await new Promise(r => setTimeout(r, 300));
-    }
-    return null;
-  }
-
-  function extractPubFromResp(resp, walletObj){
-    // try many shapes we might see from different provider versions
-    try {
-      // resp.publicKey could be a PublicKey object or base58 string
-      if(resp) {
-        if(typeof resp === 'string') return resp;
-        if(resp.publicKey) {
-          if(typeof resp.publicKey === 'string') return resp.publicKey;
-          if(typeof resp.publicKey.toString === 'function') return resp.publicKey.toString();
-          if(typeof resp.publicKey.toBase58 === 'function') return resp.publicKey.toBase58();
-        }
-        // some providers put address in result.publicKey or in resp.result
-        if(resp.result && resp.result.publicKey) {
-          if(typeof resp.result.publicKey === 'string') return resp.result.publicKey;
-          if(typeof resp.result.publicKey.toString === 'function') return resp.result.publicKey.toString();
-        }
-      }
-      if(walletObj) {
-        if(walletObj.publicKey) {
-          if(typeof walletObj.publicKey === 'string') return walletObj.publicKey;
-          if(typeof walletObj.publicKey.toString === 'function') return walletObj.publicKey.toString();
-          if(typeof walletObj.publicKey.toBase58 === 'function') return walletObj.publicKey.toBase58();
-        }
-      }
-    } catch(e){
-      appendDebug('extractPubFromResp error', e);
-    }
-    return null;
-  }
-
-  async function connectCoin98(){
-    try {
-      const c98 = await waitForCoin98(6000);
-      if(!c98){
-        showBanner('Coin98 not detected — open inside Coin98 browser', 'err');
-        walletStatus.textContent = 'Not connected';
-        appendDebug('Coin98 not found on window');
-        return;
-      }
-
-      appendDebug('coin98 global object:', c98);
-
-      // try connect API forms
-      coin98Wallet = c98.sol || c98.provider || c98;
-      appendDebug('coin98Wallet chosen:', coin98Wallet);
-
-      // prefer connect method if available
-      let resp = null;
-      if(typeof coin98Wallet.connect === 'function'){
-        try {
-          resp = await coin98Wallet.connect();
-        } catch(e){
-          appendDebug('connect() threw', e);
-          // fall back to request below
-          resp = null;
-        }
-      }
-      if(!resp && typeof coin98Wallet.request === 'function'){
-        try {
-          resp = await coin98Wallet.request({ method: 'connect' });
-        } catch(e){ 
-          appendDebug('request({method:connect}) threw', e);
-          resp = null;
-        }
-      }
-
-      appendDebug('connect response:', resp);
-
-      const pub = extractPubFromResp(resp, coin98Wallet);
-      if(!pub) {
-        walletStatus.textContent = 'Connected (pubkey unknown)';
-        showBanner('Connected (address not reported). Check debug logs.', 'ok');
-        appendDebug('No pubkey could be extracted from response or provider object.');
-      } else {
-        connectedPubkey = pub;
-        walletStatus.textContent = 'Connected';
-        walletAddrEl.textContent = pub;
-        showBanner('✅ Wallet connected: ' + pub, 'ok');
-        appendDebug('Connected pubkey:', pub);
-      }
-    } catch(err) {
-      console.error('connect error', err);
-      appendDebug('connect error', err && (err.message || err));
-      showBanner('Connection failed — check debug output', 'err');
-      walletStatus.textContent = 'Not connected';
-    }
-  }
-
-  connectBtn.addEventListener('click', connectCoin98);
-
-  // ---------- Token lookup logic ----------
-  async function loadTokenInfo(){
-    tokenResult.innerHTML = '';
-    tokenResult.className = '';
-    const raw = tokenInput.value.trim();
-    if(!raw) { showResult('Enter a mint or token account address'); return; }
-
-    showResult('⏳ Checking address...', false);
-    try {
-      // 1) Try getTokenSupply (mint case)
-      let supplyRes = null;
-      try {
-        supplyRes = await rpc('getTokenSupply', [raw]);
-      } catch(e){
-        // surface RPC error so user sees "invalid token" message if returned by RPC host
-        appendDebug('getTokenSupply error', e && e.message ? e.message : e);
-        supplyRes = null;
-      }
-
-      let mint = null;
-      let tokenAccountInfo = null;
-
-      if(supplyRes && supplyRes.value){
-        // input is a mint
-        mint = raw;
-      } else {
-        // 2) treat as token account / any account
-        try {
-          const parsed = await rpc('getParsedAccountInfo', [raw, {encoding: 'jsonParsed'}]);
-          appendDebug('getParsedAccountInfo result', parsed);
-          if(parsed && parsed.value && parsed.value.data && parsed.value.data.parsed){
-            const info = parsed.value.data.parsed.info;
-            if(info && info.mint){
-              mint = info.mint;
-              tokenAccountInfo = info;
-            }
-          }
-        } catch(err){
-          appendDebug('getParsedAccountInfo error', err && err.message ? err.message : err);
-        }
-      }
-
-      if(!mint){
-        showResult('❌ Could not determine mint for the address. If you see "invalid token" in debug logs, the RPC host may be rejecting your request (API key required or rate-limited). See debug panel below.', false);
-        return;
-      }
-
-      // Now fetch supply if not already fetched
-      let supply = supplyRes;
-      if(!supply){
-        try { supply = await rpc('getTokenSupply', [mint]); }
-        catch(e){ 
-          appendDebug('getTokenSupply (second attempt) error', e && e.message ? e.message : e);
-          supply = null; 
-        }
-      }
-
-      if(!supply || !supply.value){
-        showResult('❌ Could not fetch supply for mint: ' + mint + '. See debug panel for RPC response.', false);
-        return;
-      }
-
-      const decimals = supply.value.decimals;
-      const uiSupply = supply.value.uiAmountString || (supply.value.amount / Math.pow(10, decimals));
-
-      let ownerBalanceStr = null;
-      if(connectedPubkey){
-        try {
-          const ownerRes = await rpc('getTokenAccountsByOwner', [connectedPubkey, {mint: mint}, {encoding: 'jsonParsed'}]);
-          appendDebug('getTokenAccountsByOwner', ownerRes);
-          if(ownerRes && Array.isArray(ownerRes.value) && ownerRes.value.length > 0){
-            let sum = 0;
-            for(const a of ownerRes.value){
-              const info = a.account?.data?.parsed?.info;
-              if(info && info.tokenAmount && typeof info.tokenAmount.uiAmount === 'number'){
-                sum += info.tokenAmount.uiAmount;
-              }
-            }
-            ownerBalanceStr = String(sum);
-          } else {
-            ownerBalanceStr = "0";
-          }
-        } catch(err){
-          appendDebug('owner balance fetch failed', err && err.message ? err.message : err);
-        }
-      }
-
-      let tokenAccountBalanceText = '';
-      if(tokenAccountInfo && tokenAccountInfo.tokenAmount){
-        const ta = tokenAccountInfo.tokenAmount;
-        tokenAccountBalanceText = `Token account balance: ${ta.uiAmount} (raw: ${ta.amount}, decimals: ${ta.decimals})`;
-      }
-
-      const out = `
-        ✅ <strong>Mint:</strong> <code>${mint}</code><br>
-        <strong>Decimals:</strong> ${decimals}<br>
-        <strong>Total supply:</strong> ${uiSupply}<br>
-        ${ tokenAccountBalanceText ? `<div style="margin-top:8px">${tokenAccountBalanceText}</div>` : '' }
-        ${ ownerBalanceStr !== null ? `<div style="margin-top:8px"><strong>Your balance:</strong> ${ownerBalanceStr}</div>` : '' }
-      `;
-      showResult(out, true);
-
-    } catch(err){
-      console.error('loadTokenInfo error', err);
-      appendDebug('loadTokenInfo error', err && (err.message || err));
-      showResult('❌ Error loading token info. Check debug output below.', false);
-    }
-  }
-
-  lookupBtn.addEventListener('click', loadTokenInfo);
-
-  (async function init(){
-    const c98 = await waitForCoin98(3000);
-    if(c98){
-      showBanner('Coin98 wallet is available — press Connect', 'ok');
-      appendDebug('Coin98 detected on window:', c98);
-    } else {
-      showBanner('Open this page inside the Coin98 in-app browser to connect your wallet.', 'info');
-    }
-  })();
+    // initial sample
+    log("Ready. Enter RPC URL, address and press 'Send RPC Request'. Use the proxy option to keep keys server-side.");
   </script>
 </body>
 </html>
