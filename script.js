@@ -2,6 +2,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const loadButton = document.getElementById('loadToken');
     const tokenInput = document.getElementById('tokenAddress');
     const tokenDataDiv = document.getElementById('tokenData');
+    const buyBtn = document.getElementById('buyButton');
+    const sellBtn = document.getElementById('sellButton');
+
+    // Enable the Load button when something is typed
+    tokenInput.addEventListener('input', () => {
+        loadButton.disabled = tokenInput.value.trim() === '';
+    });
 
     loadButton.addEventListener('click', async () => {
         const tokenAddress = tokenInput.value.trim();
@@ -22,36 +29,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             const pair = data.pairs[0];
-
             const price = parseFloat(pair.priceUsd).toFixed(8);
             const change24h = pair.priceChange?.h24 ?? 0;
-            const volume24h = pair.volume?.h24 ? `$${Number(pair.volume.h24).toLocaleString()}` : 'N/A';
             const baseToken = pair.baseToken?.symbol ?? 'Unknown';
             const quoteToken = pair.quoteToken?.symbol ?? 'Unknown';
+            const volume24h = pair.volume?.h24 ? `$${Number(pair.volume.h24).toLocaleString()}` : 'N/A';
 
+            // Update info area
             tokenDataDiv.innerHTML = `
-                <h2>${baseToken} (${pair.baseToken.address.slice(0, 6)}...)</h2>
+                <h2>${baseToken}</h2>
                 <p>💰 Price: <strong>$${price}</strong></p>
                 <p>📈 24h Change: <span style="color:${change24h >= 0 ? 'green' : 'red'}">${change24h}%</span></p>
                 <p>🔄 Volume (24h): ${volume24h}</p>
-                <p>Pair: ${baseToken}/${quoteToken}</p>
-
-                <div style="margin-top: 15px;">
-                    <a href="https://jup.ag/swap/USDC-${tokenAddress}" 
-                       target="_blank" 
-                       style="background:green;color:white;padding:10px 15px;border-radius:5px;text-decoration:none;margin-right:10px;">
-                       💚 Buy
-                    </a>
-                    <a href="https://jup.ag/swap/${tokenAddress}-USDC" 
-                       target="_blank" 
-                       style="background:red;color:white;padding:10px 15px;border-radius:5px;text-decoration:none;">
-                       ❤️ Sell
-                    </a>
-                </div>
             `;
+
+            // Activate Buy/Sell links dynamically
+            buyBtn.onclick = () => {
+                window.open(`https://jup.ag/swap/USDC-${tokenAddress}`, '_blank');
+            };
+            sellBtn.onclick = () => {
+                window.open(`https://jup.ag/swap/${tokenAddress}-USDC`, '_blank');
+            };
+
         } catch (error) {
             console.error('Error loading token data:', error);
-            tokenDataDiv.innerHTML = '<p>Error fetching token data. Please try again later.</p>';
+            tokenDataDiv.innerHTML = '<p>Error fetching token data. Try again later.</p>';
         }
     });
 });
