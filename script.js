@@ -1,184 +1,133 @@
-// =========================
-// Solana Dashboard Frontend
-// =========================
+const SOL_MINT = "So11111111111111111111111111111111111111112";
+const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+let selectedToken = USDC_MINT;
 
-const BACKEND_URL = window.location.origin;
-let wallet = null;
-let currentToken = null;
-let chart;
+// ---------------------------
+// Fetch Token Data + Chart
+// ---------------------------
+async function loadTokenInfo() {
+    try {
+        const tokenAddress = document.getElementById("tokenAddress").value.trim();
+        if (!tokenAddress) return alert("Enter a token address.");
 
-// -----------------------------
-// Utility logging
-// -----------------------------
-function log(msg) {
-  const logBox = document.getElementById("logs");
-  if (!logBox) return;
-  const p = document.createElement("p");
-  p.textContent = msg;
-  logBox.prepend(p);
-  console.log(msg);
+        const res = await fetch(`/api/token/${tokenAddress}`);
+        const data = await res.json();
+
+        const pair = data.pairs?.[0];
+        if (!pair) throw new Error("Token not found.");
+
+        document.getElementById("tokenName").innerText = `${pair.baseToken.symbol} • ${pair.chainId.toUpperCase()}`;
+        document.getElementById("currentPrice").innerText = `$${parseFloat(pair.priceUsd).toFixed(6)}`;
+        document.getElementById("change24h").innerText = `${parseFloat(pair.priceChange.h24).toFixed(2)}%`;
+
+        const chartData = pair.priceChange.h24History?.map((v, i) => ({
+            time: Date.now() - (24 - i) * 3600000,
+            value: v
+        })) || [];
+
+        renderPriceChart(chartData);
+        selectedToken = tokenAddress;
+    } catch (err) {
+        console.error(err);
+        alert("Failed to fetch token info.");
+    }
 }
 
-// -----------------------------
-// Wallet connection
-// -----------------------------
-async function connectWallet() {
-  try {
-    if (!window.coin98?.sol) {
-      alert("Coin98 wallet not detected.");
-      return;
-    }
-    const publicKey = await window.coin98.sol.request({ method: "sol_requestAccounts" });
-    wallet = { publicKey };
-    document.getElementById("walletStatus").innerText = `🔗 Connected: ${publicKey.slice(0, 6)}...${publicKey.slice(-4)}`;
-    log(`✅ Wallet connected: ${publicKey}`);
-  } catch (err) {
-    log(`❌ Wallet connection failed: ${err.message}`);
-  }
-}
+// ---------------------------
+// Chart.js - Clean style
+// ---------------------------
+function renderPriceChart(prices) {
+    const ctx = document.getElementById("priceChart").getContext("2d");
+    if (window.priceChart) window.priceChart.destroy();
 
-// -----------------------------
-// Load Token Info via DexScreener
-// -----------------------------
-async function loadToken() {
-  const address = document.getElementById("tokenAddress").value.trim();
-  if (!address) return alert("Enter a valid token address.");
+    const labels = prices.map(p => new Date(p.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    const data = prices.map(p => p.value);
 
-  try {
-    const res = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${address}`);
-    const data = await res.json();
-
-    if (!data || !data.pairs || data.pairs.length === 0) {
-      alert("Token not found on DexScreener.");
-      return;
-    }
-
-    const token = data.pairs[0];
-    currentToken = token;
-
-    document.getElementById("tokenInfo").innerHTML = `
-      <h2>${token.baseToken.name} (${token.baseToken.symbol}) • ${token.chainId.toUpperCase()}</h2>
-      <p><b>💵 Current Price (USD)</b>: $${parseFloat(token.priceUsd).toFixed(6)}</p>
-      <p>24h Change: ${parseFloat(token.priceChange.h24).toFixed(2)}%</p>
-    `;
-
-    // Draw chart
-    loadChart(token);
-  } catch (err) {
-    log(`❌ Failed to load token info: ${err.message}`);
-  }
-}
-
-// -----------------------------
-// Draw price chart (Chart.js)
-// -----------------------------
-function loadChart(token) {
-  const ctx = document.getElementById("priceChart");
-  if (!ctx) return;
-
-  const prices = (token?.priceHistory || []).map((p, i) => ({
-    x: new Date(Date.now() - (token.priceHistory.length - i) * 3600000),
-    y: parseFloat(p.priceUsd),
-  }));
-
-  if (chart) chart.destroy();
-  chart = new Chart(ctx, {
-    type: "line",
-    data: {
-      datasets: [{
-        label: "24-Hour Price Trend",
-        data: prices,
-        borderWidth: 2,
-        borderColor: "#007bff",
-        fill: false,
-        tension: 0.3
-      }]
-    },
-    options: {
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { type: "time", time: { unit: "hour" } },
-        y: { beginAtZero: false }
-      }
-    }
-  });
-}
-
-// -----------------------------
-// Get Jupiter Quote
-// -----------------------------
-async function getQuote() {
-  const amount = document.getElementById("amount").value;
-  const slippage = document.getElementById("slippage").value || 1;
-  if (!wallet || !currentToken) return log("⚠️ Connect wallet and load token first.");
-
-  try {
-    const inputMint = "So11111111111111111111111111111111111111112"; // SOL
-    const outputMint = currentToken.baseToken.address;
-    const lamports = parseFloat(amount) * 1e9;
-
-    const res = await fetch(`${BACKEND_URL}/api/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${lamports}&slippageBps=${slippage * 100}`);
-    const data = await res.json();
-
-    if (data.error) {
-      log(`❌ Quote error: ${data.error}`);
-      return;
-    }
-
-    window.currentQuote = data;
-    log("✅ Quote received successfully.");
-  } catch (err) {
-    log(`❌ Quote failed: ${err.message}`);
-  }
-}
-
-// -----------------------------
-// Execute Swap
-// -----------------------------
-async function executeSwap() {
-  if (!window.currentQuote) return log("⚠️ Get quote first.");
-  if (!wallet) return log("⚠️ Connect wallet first.");
-
-  try {
-    const balRes = await fetch(`${BACKEND_URL}/api/balance/${wallet.publicKey}`);
-    const { balance } = await balRes.json();
-    const amount = parseFloat(document.getElementById("amount").value);
-
-    if (balance < amount) {
-      log("❌ Not enough SOL to complete transaction.");
-      return;
-    }
-
-    const res = await fetch(`${BACKEND_URL}/api/swap`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        quoteResponse: window.currentQuote,
-        userPublicKey: wallet.publicKey,
-      }),
+    window.priceChart = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "24-Hour Price Trend",
+                data: data,
+                borderWidth: 2,
+                borderColor: "#007aff",
+                pointRadius: 0,
+                tension: 0.4,
+                fill: {
+                    target: 'origin',
+                    above: 'rgba(0, 122, 255, 0.05)',
+                },
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: "#1e1e1e",
+                    titleColor: "#fff",
+                    bodyColor: "#fff",
+                    padding: 8,
+                    cornerRadius: 8,
+                    displayColors: false,
+                    callbacks: {
+                        label: ctx => `$${ctx.parsed.y.toFixed(5)}`
+                    }
+                }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { color: "#999" } },
+                y: { grid: { color: "rgba(0,0,0,0.05)" }, ticks: { color: "#999" } }
+            }
+        }
     });
-
-    const data = await res.json();
-    if (data.error) return log(`❌ Swap failed: ${data.error}`);
-
-    const txBase64 = data.swapTransaction;
-    log("⚡ Signing transaction in Coin98...");
-
-    const signedTx = await window.coin98.sol.request({
-      method: "sol_signAndSendTransaction",
-      params: [txBase64],
-    });
-
-    log(`✅ Swap executed! Signature: ${signedTx}`);
-  } catch (err) {
-    log(`❌ Execution failed: ${err.message}`);
-  }
 }
 
-// -----------------------------
-// Event Listeners
-// -----------------------------
-document.getElementById("connectBtn")?.addEventListener("click", connectWallet);
-document.getElementById("loadTokenBtn")?.addEventListener("click", loadToken);
-document.getElementById("quoteBtn")?.addEventListener("click", getQuote);
-document.getElementById("swapBtn")?.addEventListener("click", executeSwap);
+// ---------------------------
+// Buy / Sell Buttons
+// ---------------------------
+async function handleSwap(isBuy) {
+    const wallet = document.getElementById("wallet").value.trim();
+    const amountInput = document.getElementById("amount").value.trim();
+    const slippage = document.getElementById("slippage").value || "100";
+
+    if (!wallet) return alert("Connect your wallet.");
+    if (!amountInput) return alert("Enter an amount.");
+
+    const amountLamports = Math.floor(parseFloat(amountInput) * 1e9);
+
+    const inputMint = isBuy ? SOL_MINT : selectedToken;
+    const outputMint = isBuy ? selectedToken : SOL_MINT;
+
+    try {
+        const quoteRes = await fetch(`/api/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountLamports}&slippageBps=${slippage}`);
+        const quote = await quoteRes.json();
+
+        if (quote.error) throw new Error(quote.error);
+
+        const swapRes = await fetch("/api/swap", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                quoteResponse: quote,
+                userPublicKey: wallet
+            })
+        });
+
+        const swapData = await swapRes.json();
+        if (swapData.error) {
+            if (swapData.error.includes("insufficient funds")) {
+                alert("Not enough SOL for this transaction.");
+            } else {
+                alert("Quote error: " + swapData.error);
+            }
+            return;
+        }
+
+        alert("✅ Transaction prepared! Ready to sign in wallet.");
+    } catch (err) {
+        console.error(err);
+        alert("Quote error or swap failed.");
+    }
+}
