@@ -1,139 +1,72 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Solana Mini Dex (Coin98) — SOL default</title>
-  <meta name="description" content="Mini DexScreener chart + Coin98-only manual swap (Mainnet) via Jupiter. Default SOL.">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solana Dashboard</title>
+  <link rel="icon" href="icon.png" type="image/png">
   <style>
-    :root{--bg:#071827;--panel:rgba(255,255,255,0.03);--accent:#00d36a;--muted:#9fbdd9;--danger:#ff6b6b}
-    body{margin:0;font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,#022636,#001827);color:#ecfbff}
-    .wrap{max-width:980px;margin:18px auto;padding:14px;display:grid;gap:12px}
-    h1{margin:0;font-size:20px}
-    .muted{color:var(--muted);font-size:13px}
-    .panel{background:var(--panel);padding:12px;border-radius:10px}
-    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    input,select,button{padding:10px;border-radius:8px;border:none;background:rgba(255,255,255,0.02);color:inherit}
-    button.primary{background:var(--accent);color:#013;font-weight:700;cursor:pointer}
-    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#cfe;cursor:pointer}
-    .chart-mini{height:220px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.03);margin-top:10px}
-    iframe{width:100%;height:100%;border:0}
-    .log{font-family:monospace;background:#001b33;padding:10px;border-radius:8px;color:#9ff3d0;max-height:220px;overflow:auto}
-    .small{font-size:13px}
-    footer{font-size:13px;color:#bcd}
-    a.ghost{display:inline-block;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);color:#cfe;text-decoration:none}
-    @media(max-width:720px){.chart-mini{height:180px}}
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #0e1117;
+      color: #e5e5e5;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #111827;
+      padding: 15px;
+      font-size: 1.5em;
+      color: #00ffa3;
+      font-weight: bold;
+    }
+    .wallet-section {
+      margin-top: 40px;
+    }
+    button {
+      background-color: #00ffa3;
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      padding: 12px 25px;
+      margin: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+    button:hover {
+      background-color: #05ffb0;
+    }
+    .data {
+      margin-top: 25px;
+      background: #1e293b;
+      display: inline-block;
+      padding: 20px;
+      border-radius: 10px;
+      width: 85%;
+      max-width: 400px;
+    }
+    .data h3 {
+      margin-bottom: 5px;
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>Solana Mini Dex (Coin98)</h1>
-      <div class="muted">Default: SOL. Paste a token mint to load chart & trade. Coin98-only — manual approve required for every swap.</div>
-    </header>
+  <header>🚀 Solana Dashboard</header>
 
-    <div class="panel row" style="justify-content:space-between;align-items:center">
-      <div class="row">
-        <button id="connectBtn" class="primary">Connect Coin98</button>
-        <div id="walletShort" class="muted small" style="margin-left:8px">Not connected</div>
-      </div>
-      <div class="muted small">Network: <strong>mainnet-beta</strong></div>
+  <div class="wallet-section">
+    <button id="connectWallet">Connect Coin98 Wallet</button>
+    <div id="walletAddress"></div>
+
+    <div class="data" id="solData" style="display:none;">
+      <h3>💰 Balance: <span id="balance">Loading...</span> SOL</h3>
+      <button id="buyBtn">Buy SOL</button>
+      <button id="sellBtn">Sell SOL</button>
     </div>
-
-    <div class="panel">
-      <div class="row" style="justify-content:space-between;align-items:center">
-        <div class="row" style="gap:10px;align-items:center">
-          <input id="mintInput" placeholder="Paste token mint (leave blank = SOL)" style="min-width:220px"/>
-          <select id="quick">
-            <option value="">Quick pick</option>
-            <option value="So11111111111111111111111111111111111111112">SOL</option>
-            <option value="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v">USDC</option>
-            <option value="DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjr9mXAdrsXgPa">BONK</option>
-          </select>
-          <button id="submitBtn" class="ghost">Load</button>
-        </div>
-        <div class="row">
-          <button id="openDexBtn" class="ghost">Open DexScreener</button>
-        </div>
-      </div>
-
-      <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div id="tokenHeader" style="font-weight:700">Selected: SOL (default)</div>
-          <div id="tokenSub" class="muted small">Price: loading…</div>
-        </div>
-        <div>
-          <button id="addWatch" class="ghost">Add to Watchlist</button>
-        </div>
-      </div>
-
-      <div class="chart-mini" id="chartWrap">
-        <iframe id="dexFrame" src="https://dexscreener.com/solana" title="Dexscreener mini"></iframe>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><strong>Trade (Manual)</strong></div>
-        <div class="muted small">You must confirm every transaction in Coin98</div>
-      </div>
-
-      <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <div style="min-width:120px">
-          <div class="small muted">Amount (SOL or token)</div>
-          <input id="amount" placeholder="e.g. 0.05"/>
-        </div>
-
-        <div style="min-width:140px">
-          <div class="small muted">Side</div>
-          <select id="side">
-            <option value="sol-to-token">Buy (SOL → token)</option>
-            <option value="token-to-sol">Sell (token → SOL)</option>
-          </select>
-        </div>
-
-        <div style="min-width:110px">
-          <div class="small muted">Slippage %</div>
-          <input id="slippage" value="1"/>
-        </div>
-
-        <div style="margin-left:auto;display:flex;gap:8px">
-          <button id="quoteBtn" class="ghost">Get Quote</button>
-          <button id="executeBtn" class="primary">Execute (Sign & Send)</button>
-          <a id="openJupiter" class="ghost" target="_blank" rel="noopener">Open Jupiter</a>
-        </div>
-      </div>
-
-      <div id="quoteBox" style="margin-top:12px" class="muted small">Quote will appear here after you click Get Quote.</div>
-    </div>
-
-    <div class="panel" style="display:flex;gap:12px;flex-wrap:wrap">
-      <div style="flex:1;min-width:200px">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><strong>Watchlist</strong></div>
-          <div>
-            <button id="exportWL" class="ghost">Export</button>
-            <button id="clearWL" class="ghost">Clear</button>
-          </div>
-        </div>
-        <div id="watchlist" style="margin-top:8px" class="small muted">Empty</div>
-      </div>
-
-      <div style="flex:1;min-width:260px">
-        <div><strong>Logs</strong></div>
-        <div id="log" class="log" style="margin-top:8px">Logs appear here. Verify transactions carefully.</div>
-      </div>
-    </div>
-
-    <footer class="panel">
-      <div style="font-weight:700;color:var(--danger)">Warning & safety</div>
-      <div class="muted small" style="margin-top:6px">
-        This UI constructs real MAINNET transactions. Only approve transactions you understand. Test with very small amounts first.
-      </div>
-    </footer>
   </div>
 
-  
-<script src="script.js"></script>
+  <script src="https://unpkg.com/@solana/web3.js@1.90.0/lib/index.iife.min.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
