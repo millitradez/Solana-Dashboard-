@@ -1,140 +1,153 @@
 // ==============================
-// Solana Dashboard Script (Path B)
+// Solana Dashboard - Coin98 + Jupiter Swap Integration
 // ==============================
 
-let wallet = null;
-let connection = null;
-let tokenAddress = "";
-let side = "buy"; // Default: Buy (SOL → token)
+// Replace with your own Flask backend (on Render, Vercel Functions, etc.)
+const BACKEND_URL = "https://solana-dashboard-backend.vercel.app";
 
-// HTML elements
-const connectBtn = document.getElementById("connectWallet");
+// Elements
 const tokenInput = document.getElementById("tokenAddress");
 const loadBtn = document.getElementById("loadToken");
+const tokenDataDiv = document.getElementById("tokenData");
+const logBox = document.getElementById("logs");
 const buyBtn = document.getElementById("buyBtn");
 const sellBtn = document.getElementById("sellBtn");
-const amountInput = document.getElementById("amountInput");
-const slippageInput = document.getElementById("slippageInput");
-const getQuoteBtn = document.getElementById("getQuoteBtn");
-const executeBtn = document.getElementById("executeSwapBtn");
-const logBox = document.getElementById("logs");
+const connectBtn = document.getElementById("connectWallet");
+const amountInput = document.getElementById("amount");
+const slippageInput = document.getElementById("slippage");
+const quoteBtn = document.getElementById("getQuote");
+const executeBtn = document.getElementById("executeSwap");
 
-// Jupiter + default mints
-const SOL_MINT = "So11111111111111111111111111111111111111112";
-const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+let wallet = null;
+window.currentQuote = null;
 
-const BACKEND_URL = "https://solana-dashboard-1ui9.vercel.app"; // your vercel domain
-
-// ==============================
-// Logging Helper
-// ==============================
-function log(message) {
-  const time = new Date().toLocaleTimeString();
-  logBox.value += `[${time}] ${message}\n`;
-  logBox.scrollTop = logBox.scrollHeight;
-  console.log(message);
+// Logger
+function log(msg) {
+  const p = document.createElement("p");
+  p.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  logBox.prepend(p);
+  console.log(msg);
 }
 
 // ==============================
-// Connect Wallet (Coin98)
+// Wallet Connection
 // ==============================
-connectBtn.addEventListener("click", async () => {
+async function connectWallet() {
   try {
-    if (window.coin98?.sol) {
-      await window.coin98.sol.connect();
-      const accounts = await window.coin98.sol.request({ method: "sol_accounts" });
-      wallet = accounts[0];
-      log(`✅ Connected: ${wallet.publicKey}`);
-    } else {
-      log("❌ Coin98 not detected. Please open in Coin98 browser.");
-    }
+    if (!window.coin98?.sol) throw new Error("Coin98 not found");
+    const accounts = await window.coin98.sol.request({ method: "sol_requestAccounts" });
+    const publicKey = accounts[0];
+    wallet = { publicKey };
+    log(`✅ Wallet connected: ${publicKey}`);
   } catch (err) {
-    log(`❌ Wallet connection error: ${err.message}`);
+    log(`❌ Wallet connect failed: ${err.message}`);
   }
-});
+}
+
+connectBtn?.addEventListener("click", connectWallet);
 
 // ==============================
 // Load Token Info via DexScreener
 // ==============================
-loadBtn.addEventListener("click", async () => {
-  tokenAddress = tokenInput.value.trim();
-  if (!tokenAddress) return log("⚠️ Enter a valid token address.");
+loadBtn?.addEventListener("click", async () => {
+  const tokenAddr = tokenInput.value.trim();
+  if (!tokenAddr) return log("⚠️ Enter a token address first.");
+  tokenDataDiv.innerHTML = "⏳ Loading...";
 
   try {
-    const res = await fetch(`${BACKEND_URL}/api/token/${tokenAddress}`);
+    const res = await fetch(`${BACKEND_URL}/api/token/${tokenAddr}`);
     const data = await res.json();
 
-    if (data?.pairs?.length) {
-      const pair = data.pairs[0];
-      log(`✅ Loaded: ${pair.baseToken.symbol}/${pair.quoteToken.symbol}`);
-      document.getElementById("dexFrame").src = `https://dexscreener.com/solana/${tokenAddress}?embed=1&theme=dark`;
-    } else {
-      log("⚠️ Token not found on DexScreener.");
+    if (!data || !data.pairs || !data.pairs[0]) {
+      tokenDataDiv.innerHTML = "❌ Token not found.";
+      return;
     }
+
+    const pair = data.pairs[0];
+    const { baseToken, priceUsd, priceChange } = pair;
+
+    tokenDataDiv.innerHTML = `
+      <h3>${baseToken.symbol} (${baseToken.name})</h3>
+      <p>💲 Price: $${priceUsd}</p>
+      <p>📈 24h Change: ${priceChange?.h24 || 0}%</p>
+      <iframe src="https://dexscreener.com/solana/${tokenAddr}?embed=1&theme=dark"
+        width="100%" height="400" style="border:none;"></iframe>
+    `;
+
+    log(`✅ DexScreener loaded for ${tokenAddr}`);
   } catch (err) {
-    log(`❌ Failed to load token: ${err.message}`);
+    log(`❌ DexScreener error: ${err.message}`);
   }
 });
 
 // ==============================
-// Side Select (Buy / Sell)
+// Get Jupiter Quote
 // ==============================
-buyBtn.addEventListener("click", () => {
-  side = "buy";
-  buyBtn.classList.add("active");
-  sellBtn.classList.remove("active");
-  log("🟢 Selected: BUY (SOL → Token)");
-});
-
-sellBtn.addEventListener("click", () => {
-  side = "sell";
-  sellBtn.classList.add("active");
-  buyBtn.classList.remove("active");
-  log("🔴 Selected: SELL (Token → SOL)");
-});
-
-// ==============================
-// Get Quote (from Jupiter via backend)
-// ==============================
-getQuoteBtn.addEventListener("click", async () => {
-  if (!tokenAddress) return log("⚠️ Load a token first.");
+quoteBtn?.addEventListener("click", async () => {
+  if (!wallet) return log("⚠️ Connect wallet first.");
+  const tokenAddr = tokenInput.value.trim();
   const amount = parseFloat(amountInput.value);
-  if (!amount || amount <= 0) return log("⚠️ Enter a valid amount.");
+  if (!tokenAddr || !amount) return log("⚠️ Enter token and amount.");
 
-  const slippage = parseFloat(slippageInput.value || 1);
-  log(`💬 Requesting Jupiter quote...`);
-
-  const inputMint = side === "buy" ? SOL_MINT : tokenAddress;
-  const outputMint = side === "buy" ? tokenAddress : SOL_MINT;
-  const lamports = Math.floor(amount * 1e9);
+  const slippage = parseFloat(slippageInput.value || "1");
+  const inputMint = "So11111111111111111111111111111111111111112"; // SOL
+  const outputMint = tokenAddr;
+  const lamports = Math.floor(amount * 1e9); // SOL → Lamports
+  const slippageBps = Math.floor(slippage * 100);
 
   try {
-    const url = `${BACKEND_URL}/api/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${lamports}&slippageBps=${slippage * 100}`;
-    const res = await fetch(url);
-    const data = await res.json();
+    log("🔄 Requesting Jupiter quote...");
+    const res = await fetch(
+      `${BACKEND_URL}/api/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${lamports}&slippageBps=${slippageBps}`
+    );
 
-    if (data.error) return log(`❌ Quote error: ${data.error}`);
-    log(`✅ Quote received! Out amount ≈ ${(data.outAmount / 1e9).toFixed(6)} units`);
+    const data = await res.json();
+    if (data.error || !data.outAmount) {
+      log("❌ Quote error: Load failed");
+      return;
+    }
+
     window.currentQuote = data;
+    const outTokens = parseFloat(data.outAmount) / Math.pow(10, data.outputMintDecimals || 6);
+    log(`✅ Quote: ${amount} SOL ≈ ${outTokens.toFixed(4)} ${data.outputMintSymbol || "TOKEN"}`);
   } catch (err) {
-    log(`❌ Quote request failed: ${err.message}`);
+    log(`❌ Quote fetch failed: ${err.message}`);
   }
 });
 
 // ==============================
-// Execute Swap (via Coin98 signing Jupiter transaction)
+// Execute Swap - Path B
 // ==============================
-executeBtn.addEventListener("click", async () => {
-  if (!window.currentQuote) return log("⚠️ No quote available. Get a quote first.");
-  if (!wallet) return log("⚠️ Connect your wallet first.");
+executeBtn?.addEventListener("click", async () => {
+  if (!window.currentQuote) return log("⚠️ Get a quote first.");
+  if (!wallet) return log("⚠️ Connect wallet first.");
 
   try {
-    log("🔄 Executing swap...");
-    // This is where you'd call Jupiter’s /swap API to create a transaction
-    // and then send it for signing by Coin98 wallet.
-    // For security, this should happen via backend (not direct JS).
+    log("🔄 Creating Jupiter swap transaction...");
+    const res = await fetch(`${BACKEND_URL}/api/swap`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        quoteResponse: window.currentQuote,
+        userPublicKey: wallet.publicKey,
+      }),
+    });
 
-    log("⚡ Swap execution simulated (Coin98 signing placeholder)");
+    const data = await res.json();
+    if (data.error) {
+      log(`❌ Swap creation failed: ${data.error}`);
+      return;
+    }
+
+    const txBase64 = data.swapTransaction;
+    log("⚡ Transaction created, sending to Coin98...");
+
+    const signedTx = await window.coin98.sol.request({
+      method: "sol_signAndSendTransaction",
+      params: [txBase64],
+    });
+
+    log(`✅ Swap executed successfully! Signature: ${signedTx}`);
   } catch (err) {
     log(`❌ Swap execution failed: ${err.message}`);
   }
