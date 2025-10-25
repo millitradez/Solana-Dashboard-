@@ -1,59 +1,73 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Solana Dashboard ⚡</title>
-  <link rel="icon" href="./icon.png" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>⚡ Solana Dashboard</title>
+  <link rel="icon" href="https://cryptologos.cc/logos/solana-sol-logo.png" />
   <style>
     body {
-      font-family: "Poppins", sans-serif;
+      font-family: Arial, sans-serif;
       text-align: center;
-      background-color: #ffffff;
+      background: #fff;
       color: #222;
-      margin: 0;
-      padding: 1.5rem;
+      padding: 30px;
     }
+
     h1 {
-      font-size: 1.8rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
+      font-size: 28px;
+      margin-bottom: 10px;
     }
+
     input {
-      width: 90%;
-      max-width: 400px;
-      padding: 10px;
-      margin: 10px 0;
+      width: 85%;
+      padding: 12px;
       border: 1px solid #ccc;
-      border-radius: 6px;
+      border-radius: 8px;
+      font-size: 16px;
+      margin-bottom: 15px;
     }
+
     button {
-      padding: 10px 16px;
-      margin: 6px;
+      font-size: 16px;
+      padding: 12px 18px;
+      margin: 10px;
       border: none;
       border-radius: 8px;
-      color: #fff;
       cursor: pointer;
-      font-weight: 600;
     }
-    .buy { background-color: #16c47f; }
-    .sell { background-color: #f44336; }
-    #chart iframe {
+
+    #loadToken {
+      background-color: #f5f5f5;
+      color: #888;
+    }
+
+    #loadToken:enabled {
+      background-color: #007bff;
+      color: white;
+    }
+
+    #tokenData {
+      margin-top: 20px;
+      font-size: 16px;
+    }
+
+    #buyButton {
+      background-color: #1abc9c;
+      color: white;
+    }
+
+    #sellButton {
+      background-color: #e74c3c;
+      color: white;
+    }
+
+    iframe {
+      margin-top: 15px;
       width: 100%;
-      max-width: 420px;
-      height: 280px;
+      height: 400px;
       border: none;
-      margin-top: 10px;
-      border-radius: 10px;
-    }
-    .price {
-      font-size: 1.6rem;
-      font-weight: 700;
-      margin: 12px 0;
-    }
-    .change {
-      font-size: 1rem;
-      color: #16c47f;
+      border-radius: 12px;
     }
   </style>
 </head>
@@ -61,22 +75,20 @@
   <h1>⚡ Solana Dashboard</h1>
   <p>Enter a Solana token address to load live data via DexScreener.</p>
 
-  <input id="tokenAddress" placeholder="Paste Solana token address" />
-  <button onclick="loadToken()">Load Token</button>
+  <input id="tokenAddress" placeholder="Enter Solana token address" />
+  <br />
+  <button id="loadToken" disabled>Load Token</button>
 
-  <div id="info">
-    <p id="tokenName"></p>
-    <p class="price" id="tokenPrice"></p>
-    <p class="change" id="tokenChange"></p>
-  </div>
-
-  <div id="chart"></div>
+  <div id="tokenData"></div>
 
   <div>
-    <button class="buy" onclick="buyToken()">💚 Buy</button>
-    <button class="sell" onclick="sellToken()">❤️ Sell</button>
+    <button id="buyButton">💚 Buy</button>
+    <button id="sellButton">❤️ Sell</button>
   </div>
 
-  <script src="./script.js"></script>
+  <!-- (optional mini chart — will auto-fill when token loads) -->
+  <iframe id="chartFrame" style="display:none;"></iframe>
+
+  <script src="script.js"></script>
 </body>
 </html>
