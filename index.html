@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🚀 Solana Dashboard | Coin98 Compatible</title>
   <style>
     body {
@@ -13,10 +13,7 @@
       margin: 0;
       padding: 20px;
     }
-    h1 {
-      font-size: 2rem;
-      margin-bottom: 5px;
-    }
+    h1 { font-size: 2rem; margin-bottom: 5px; }
     .card {
       background: white;
       color: #222;
@@ -38,9 +35,7 @@
       margin-top: 10px;
       width: 100%;
     }
-    button:hover {
-      opacity: 0.9;
-    }
+    button:hover { opacity: 0.9; }
     input {
       width: 100%;
       padding: 10px;
@@ -54,18 +49,9 @@
       border-radius: 8px;
       font-weight: 500;
     }
-    .success {
-      background: #d4edda;
-      color: #155724;
-    }
-    .error {
-      background: #f8d7da;
-      color: #721c24;
-    }
-    .token-buttons button {
-      width: 45%;
-      margin: 5px;
-    }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+    .token-buttons button { width: 45%; margin: 5px; }
   </style>
 </head>
 <body>
@@ -92,7 +78,7 @@
   </div>
 
   <script>
-    // --- WALLET CONNECTION ---
+    // ---- WALLET CONNECTION ----
     const connectBtn = document.getElementById("connectBtn");
     const walletInfo = document.getElementById("walletInfo");
     const statusDiv = document.getElementById("status");
@@ -101,7 +87,7 @@
       if (!window.coin98 || !window.coin98.sol) {
         statusDiv.style.display = "block";
         statusDiv.className = "status error";
-        statusDiv.textContent = "❌ Coin98 Wallet not detected. Please open in Coin98 browser.";
+        statusDiv.textContent = "❌ Coin98 Wallet not detected. Open in Coin98 browser.";
         return;
       }
       try {
@@ -111,7 +97,6 @@
         statusDiv.style.display = "block";
         statusDiv.className = "status success";
         statusDiv.textContent = "✅ Wallet connected";
-        console.log("Wallet:", resp);
       } catch (err) {
         console.error(err);
         statusDiv.style.display = "block";
@@ -122,7 +107,7 @@
 
     connectBtn.addEventListener("click", connectWallet);
 
-    // --- TOKEN INFO FETCH ---
+    // ---- TOKEN FETCH (RPC CALL) ----
     document.getElementById("loadTokenBtn").addEventListener("click", async () => {
       const tokenAddress = document.getElementById("tokenAddress").value.trim();
       const tokenInfoDiv = document.getElementById("tokenInfo");
@@ -133,34 +118,39 @@
         return;
       }
 
-      tokenInfoDiv.innerHTML = "⏳ Fetching token info...";
+      tokenInfoDiv.innerHTML = "⏳ Loading token info...";
 
-      // Try primary API first
-      const mainURL = `https://api.solscan.io/account?address=${tokenAddress}`;
-      // Fallback with CORS proxy (to work on GitHub Pages)
-      const proxyURL = `https://corsproxy.io/?${encodeURIComponent(mainURL)}`;
+      const rpcUrl = "https://api.mainnet-beta.solana.com";
+      const payload = {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getTokenSupply",
+        params: [tokenAddress]
+      };
 
       try {
-        let response = await fetch(mainURL);
-        if (!response.ok) response = await fetch(proxyURL);
-        const data = await response.json();
+        const res = await fetch(rpcUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
         console.log("Token info:", data);
 
-        if (!data.data) {
-          tokenInfoDiv.innerHTML = "❌ Token not found or invalid address.";
+        if (!data.result || !data.result.value) {
+          tokenInfoDiv.innerHTML = "❌ Invalid token or no supply info found.";
           return;
         }
 
-        const { lamports, owner, executable } = data.data;
+        const { amount, decimals, uiAmount, uiAmountString } = data.result.value;
         tokenInfoDiv.innerHTML = `
-          ✅ <b>Token Loaded</b><br>
-          <b>Owner:</b> ${owner || "N/A"}<br>
-          <b>Lamports:</b> ${lamports || "N/A"}<br>
-          <b>Executable:</b> ${executable ? "Yes" : "No"}
+          ✅ <b>Token Found</b><br>
+          <b>Decimals:</b> ${decimals}<br>
+          <b>Supply:</b> ${uiAmountString || uiAmount || amount}
         `;
       } catch (err) {
-        console.error("Token fetch error:", err);
-        tokenInfoDiv.innerHTML = "❌ Error loading token info.";
+        console.error("RPC error:", err);
+        tokenInfoDiv.innerHTML = "❌ Error fetching token info.";
       }
     });
   </script>
