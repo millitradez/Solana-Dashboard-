@@ -1,0 +1,37 @@
+button {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 25px;
+  font-size: 16px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+button.buy {
+  background: #28a745;
+}
+button.buy:hover {
+  background: #34d058;
+  transform: scale(1.05);
+}
+
+button.sell {
+  background: #d73a49;
+}
+button.sell:hover {
+  background: #f04f5c;
+  transform: scale(1.05);
+}
+
+#logs {
+  background: #111;
+  color: #0f0;
+  font-family: monospace;
+  font-size: 14px;
+  padding: 10px;
+  border-radius: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 15px;
+}
