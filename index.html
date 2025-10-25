@@ -1,152 +1,124 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🚀 Solana Dashboard</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MilliTradez Token Dashboard</title>
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(180deg, #6a11cb, #2575fc);
-      color: #222;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(180deg, #4c00ff, #a100ff);
+      color: white;
       text-align: center;
-      padding: 20px;
-    }
-    h1 { color: white; }
-    .card {
-      background: white;
-      border-radius: 10px;
-      padding: 20px;
-      margin: 20px auto;
-      width: 90%;
-      max-width: 400px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      padding: 30px;
     }
     button {
-      background-color: #00c9a7;
-      color: white;
+      background: #00ffcc;
       border: none;
-      padding: 12px 20px;
+      padding: 12px 24px;
+      margin: 10px;
       border-radius: 8px;
-      cursor: pointer;
       font-size: 16px;
-      margin-top: 10px;
+      cursor: pointer;
     }
     button:hover {
-      background-color: #00a689;
+      background: #00e6b8;
     }
     input {
-      width: 90%;
       padding: 10px;
       border-radius: 6px;
-      border: 1px solid #ccc;
+      border: none;
+      width: 80%;
+      margin: 10px auto;
+      display: block;
+      text-align: center;
     }
-    .success { background: #ccffcc; padding: 10px; border-radius: 8px; color: green; }
-    .error { background: #ffcccc; padding: 10px; border-radius: 8px; color: red; }
-    pre {
-      text-align: left;
-      background: #111;
-      color: #0f0;
+    .card {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 15px 0;
+    }
+    #debug {
+      background: black;
+      color: #00ff00;
       padding: 10px;
-      border-radius: 8px;
-      overflow-x: auto;
+      border-radius: 6px;
+      text-align: left;
+      font-family: monospace;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
     }
   </style>
 </head>
 <body>
-  <h1>🚀 Solana Dashboard</h1>
-  <p style="color:white;">Coin98 Compatible</p>
-  
-  <div id="status" class="error">❌ Connection failed</div>
+
+  <h1>💎 MilliTradez Token Dashboard</h1>
 
   <div class="card">
-    <h2>💼 Wallet</h2>
-    <button id="connectBtn">💎 Connect Coin98 Wallet</button>
-    <p id="walletAddress"></p>
+    <h2>Wallet</h2>
+    <button onclick="connectWallet()">Connect Coin98 Wallet</button>
+    <p id="walletStatus">Not connected</p>
   </div>
 
   <div class="card">
     <h2>🔍 Token Search</h2>
-    <input id="tokenAddress" type="text" placeholder="Enter Solana token address" />
-    <button id="loadTokenBtn">Load token info</button>
-    <p id="tokenInfo"></p>
+    <input id="tokenAddress" placeholder="Enter token address (mint)">
+    <button onclick="loadTokenInfo()">Load Token Info</button>
   </div>
 
   <div class="card">
-    <h3>🐞 Debug output</h3>
-    <pre id="debugLog">Waiting for logs...</pre>
+    <h2>🐞 Debug Output</h2>
+    <div id="debug">Waiting for logs...</div>
   </div>
 
-  <script type="module">
-    import { Connection, PublicKey } from "https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.3/+esm";
+  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+  <script>
+    const connection = new solanaWeb3.Connection(
+      "https://mainnet.helius-rpc.com/?api-key=YOUR_API_KEY"
+    );
 
-    const rpcUrl = "https://api.mainnet-beta.solana.com";
-    const connection = new Connection(rpcUrl, "confirmed");
-
-    const connectBtn = document.getElementById("connectBtn");
-    const walletAddress = document.getElementById("walletAddress");
-    const tokenAddressInput = document.getElementById("tokenAddress");
-    const loadTokenBtn = document.getElementById("loadTokenBtn");
-    const tokenInfo = document.getElementById("tokenInfo");
-    const debugLog = document.getElementById("debugLog");
-    const statusDiv = document.getElementById("status");
-
-    let wallet = null;
-
-    function logDebug(msg) {
-      debugLog.textContent += `\n${msg}`;
+    async function connectWallet() {
+      const debug = document.getElementById('debug');
+      try {
+        if (window.coin98 && window.coin98.sol) {
+          await window.coin98.sol.connect();
+          const pubKey = window.coin98.sol.publicKey.toString();
+          document.getElementById('walletStatus').innerText = `✅ Connected: ${pubKey}`;
+          debug.innerText = `Connected wallet: ${pubKey}`;
+        } else {
+          document.getElementById('walletStatus').innerText = '❌ Coin98 not detected';
+          debug.innerText = 'Open this page inside Coin98 browser.';
+        }
+      } catch (err) {
+        console.error(err);
+        document.getElementById('walletStatus').innerText = '❌ Connection failed';
+        debug.innerText = `Connection error: ${err.message}`;
+      }
     }
 
-    connectBtn.onclick = async () => {
-      if (!window.coin98 || !window.coin98.sol) {
-        statusDiv.className = "error";
-        statusDiv.textContent = "❌ Coin98 not detected. Please open in Coin98 browser.";
+    async function loadTokenInfo() {
+      const debug = document.getElementById('debug');
+      const tokenAddress = document.getElementById('tokenAddress').value.trim();
+      if (!tokenAddress) {
+        alert('Enter a token address');
         return;
       }
-      try {
-        const resp = await window.coin98.sol.request({ method: "connect" });
-        wallet = resp.publicKey;
-        statusDiv.className = "success";
-        statusDiv.textContent = "✅ Wallet connected";
-        walletAddress.textContent = `Connected: ${wallet}`;
-      } catch (err) {
-        statusDiv.className = "error";
-        statusDiv.textContent = "❌ Wallet connection failed.";
-        logDebug(err.message);
-      }
-    };
 
-    loadTokenBtn.onclick = async () => {
-      const tokenAddr = tokenAddressInput.value.trim();
-      if (!tokenAddr) return alert("Please enter a token address");
-      tokenInfo.textContent = "";
-      logDebug("Querying token supply for " + tokenAddr);
       try {
-        const mintPubkey = new PublicKey(tokenAddr);
-        const supply = await connection.getTokenSupply(mintPubkey);
-        tokenInfo.innerHTML = `✅ Token Supply: <b>${supply.value.uiAmountString}</b>`;
-        statusDiv.className = "success";
-        statusDiv.textContent = "✅ Token data loaded";
-      } catch (err) {
-        statusDiv.className = "error";
-        statusDiv.textContent = "❌ Could not determine mint for the address.";
-        tokenInfo.textContent = "Invalid token or no supply info found.";
-        logDebug("getTokenSupply error " + err.message);
-      }
-    };
+        const mintPubkey = new solanaWeb3.PublicKey(tokenAddress);
+        const tokenInfo = await connection.getParsedAccountInfo(mintPubkey);
 
-    // Quick connection test
-    connection.getVersion()
-      .then(v => {
-        statusDiv.className = "success";
-        statusDiv.textContent = "✅ RPC connected";
-        logDebug("RPC connected: " + JSON.stringify(v));
-      })
-      .catch(err => {
-        statusDiv.className = "error";
-        statusDiv.textContent = "❌ RPC connection failed";
-        logDebug("rpc_error_network: " + err.message);
-      });
+        if (!tokenInfo || !tokenInfo.value) {
+          debug.innerText = `❌ Could not load token info. Invalid or rate-limited.`;
+        } else {
+          debug.innerText = JSON.stringify(tokenInfo.value.data, null, 2);
+        }
+      } catch (err) {
+        console.error(err);
+        debug.innerText = `Error fetching token info: ${err.message}`;
+      }
+    }
   </script>
 </body>
 </html>
