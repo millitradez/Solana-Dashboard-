@@ -1,3 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Trading Dashboard</title>
+    <!-- Solana Web3.js library for transaction handling -->
+    <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.91.4/lib/index.iife.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #eef2f7;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            margin: 20px auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+            border: 1px solid #e0e0e0;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+        }
+        .wallet-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .wallet-button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 17px;
+            transition: background-color 0.3s ease;
+        }
+        .wallet-button:hover {
+            background-color: #0056b3;
+        }
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+            transform: translate3d(0, 0, 0);
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        #walletStatus {
+            margin-top: 15px;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        .input-section {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            gap: 10px;
+        }
+        .input-section input[type="text"] {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 16px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .input-section button {
+            background-color: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 17px;
+            transition: background-color 0.3s ease;
+        }
+        .input-section button:hover {
+            background-color: #218838;
+        }
+        .input-section button.loading {
+            cursor: not-allowed;
+            background-color: #218838;
+        }
+        .loader {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #ffffff;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .price-up { animation: flash-green 0.7s ease-out; }
+        .price-down { animation: flash-red 0.7s ease-out; }
+        @keyframes flash-green {
+            0%, 100% { background-color: transparent; } 50% { background-color: rgba(40, 167, 69, 0.3); }
+        }
+        @keyframes flash-red {
+            0%, 100% { background-color: transparent; } 50% { background-color: rgba(220, 53, 69, 0.3); }
+        }
+        .display-area {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            min-height: 120px;
+            border: 1px solid #e9ecef;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .error-message {
+            color: #dc3545;
+            font-weight: bold;
+            margin-top: 10px;
+            text-align: center;
+        }
+        .token-data p {
+            margin: 8px 0;
+            font-size: 1.1em;
+            line-height: 1.5;
+        }
+        .token-data strong {
+            color: #495057;
+        }
+        .token-data a {
+            color: #007bff;
+            text-decoration: none;
+            word-break: break-all;
+        }
+        .token-data a:hover {
+            text-decoration: underline;
+        }
+        .pump-fun-progress {
+            margin-top: 15px;
+            background-color: #e9f5ff;
+            border: 1px solid #bde0ff;
+            padding: 15px;
+            border-radius: 6px;
+        }
+        .progress-bar-container {
+            width: 100%; background-color: #d1d1d1; border-radius: 5px; overflow: hidden;
+        }
+        .progress-bar {
+            height: 20px; background-color: #007bff; width: 0%; text-align: center; color: white; line-height: 20px; transition: width 0.5s ease-in-out;
+        }
+        .trade-section {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+        }
+        .trade-section h3 {
+            margin-top: 0;
+            text-align: center;
+            color: #2c3e50;
+        }
+        .trade-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .trade-actions input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        .trade-actions button {
+            padding: 10px 15px;
+            font-size: 16px;
+            border-radius: 6px;
+            border: none;
+            color: white;
+            cursor: pointer;
+        }
+        #tradeStatus { margin-top: 15px; text-align: center; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Crypto Trading Dashboard</h1>
+ 
+        <div class="wallet-section">
+            <button class="wallet-button" onclick="handleWalletAction()">Connect Wallet</button>
+            <p id="walletStatus"></p>
+        </div>
+ 
+        <div class="input-section">
+            <input type="text" id="tokenInput" placeholder="Enter Token Address or Symbol" onkeypress="handleKeyPress(event)">
+            <button onclick="fetchTokenData()">Get Data</button>
+        </div>
+ 
+        <div class="display-area" id="displayArea">
+            <p>Enter a token contract address above and click "Get Data" to see its trading information.</p>
+        </div>
+    </div>
+ 
+    <script>
+        let priceUpdateInterval; // To hold the interval for price updates
+        let currentTokenAddress; // To store the current token for updates
+        let walletProvider = null; // To hold the wallet provider instance
+        let userPublicKey = null; // To hold the user's public key
+        let isWalletConnected = false; // To track wallet connection state
+        let lastPriceUsd = 0; // To track price changes for UI feedback
+       
+        // Function to update all wallet-related UI elements
+        function updateWalletUI(connected, publicKey = null, message = '') {
+            const connectButton = document.querySelector('.wallet-button');
+            const walletStatus = document.getElementById('walletStatus');
+ 
+            isWalletConnected = connected;
+            userPublicKey = publicKey;
+ 
+            if (connected && publicKey) {
+                const shortAddress = `${publicKey.toString().substring(0, 4)}...${publicKey.toString().substring(publicKey.length - 4)}`;
+                walletStatus.innerHTML = `Connected: <strong>${shortAddress}</strong>`;
+                connectButton.textContent = 'Disconnect Wallet';
+                connectButton.style.backgroundColor = '#dc3545'; // Red color for disconnect
+            } else {
+                walletStatus.innerHTML = message || 'Not Connected';
+                connectButton.textContent = 'Connect Wallet';
+                connectButton.style.backgroundColor = '#007bff'; // Original blue color
             }
         }
  
@@ -39,3 +282,292 @@
         // Handles both connecting and disconnecting the wallet
         async function handleWalletAction() {
  
+            // Check if running inside Google Cloud Shell Web Preview
+            if (window.location.hostname.endsWith('cloudshell.dev')) {
+                updateWalletUI(false, null, `<span class="error-message">Wallet connection is not available in this preview.</span>`);
+                return;
+            }
+ 
+            if (!walletProvider) {
+                updateWalletUI(false, null, `<span class="error-message">Solana wallet not found. Please install Phantom.</span>`);
+                return;
+            }
+ 
+            // If connected, the action is to disconnect.
+            if (isWalletConnected) {
+                try {
+                    await walletProvider.disconnect();
+                } catch (error) {
+                    console.error('Error during disconnect:', error);
+                    updateWalletUI(false, null, `<span class="error-message">Failed to disconnect wallet.</span>`);
+                }
+                return;
+            }
+ 
+            // If not connected, the action is to connect.
+            try {
+                await walletProvider.connect(); // This will show the popup
+            } catch (connectError) {
+                console.log("User rejected the wallet connection request.");
+                updateWalletUI(false, null, 'Connection request was cancelled.');
+                const connectButton = document.querySelector('.wallet-button');
+                connectButton.classList.add('shake');
+                // Clean up UI after the animation and message display
+                setTimeout(() => {
+                    connectButton.classList.remove('shake');
+                    updateWalletUI(false, null, 'Not Connected');
+                }, 2000);
+            }
+        }
+ 
+        // Fetch token data from the backend
+        async function fetchTokenData() {
+            clearInterval(priceUpdateInterval); // Stop any previous auto-updates
+ 
+            const tokenInput = document.getElementById('tokenInput');
+            const getDataButton = document.querySelector('.input-section button');
+            const originalButtonText = getDataButton.innerHTML;
+            const displayArea = document.getElementById('displayArea');
+            let tokenIdentifier = tokenInput.value.trim();
+ 
+            // Check if the input is a pump.fun URL and extract the token address
+            try {
+                const url = new URL(tokenIdentifier);
+                if (url.hostname === 'pump.fun') {
+                    tokenIdentifier = url.pathname.split('/').pop();
+                }
+            } catch (e) { /* Not a valid URL, treat as address/symbol */ }
+ 
+ 
+            if (!tokenIdentifier) {
+                displayArea.innerHTML = '<p class="error-message">Please enter a token contract address or symbol.</p>';
+                return;
+            }
+ 
+            displayArea.innerHTML = '<p style="text-align: center;">Fetching data...</p>';
+            // Disable form and show loader
+            tokenInput.disabled = true;
+            getDataButton.disabled = true;
+            getDataButton.innerHTML = 'Fetching... <span class="loader"></span>';
+           
+            currentTokenAddress = tokenIdentifier; // Store for auto-updating
+ 
+            try {
+                const response = await fetch('/get_token_data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ token_identifier: tokenIdentifier }),
+                });
+ 
+                const data = await response.json();
+ 
+                if (!response.ok) {
+                    displayArea.innerHTML = `<p class="error-message">Error: ${data.error || 'Unknown error'}</p>`;
+                    return;
+                }
+ 
+                // Format numbers for better readability
+                lastPriceUsd = parseFloat(data.priceUsd) || 0; // Set initial price
+                const formattedPrice = data.priceUsd ? `$${parseFloat(data.priceUsd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 10 })}` : 'N/A';
+                const formattedLiquidity = data.liquidity?.usd ? `$${parseFloat(data.liquidity.usd).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : 'N/A';
+                const formattedVolume = data.volume?.h24 ? `$${parseFloat(data.volume.h24).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : 'N/A';
+ 
+                // Check for and display pump.fun specific data
+                let pumpFunHtml = '';
+                if (data.pumpFunData) {
+                    // Since this is a pump.fun token, add the trading interface
+                    pumpFunHtml = `
+                        <div class="pump-fun-progress">
+                            <p><strong>Bonding Curve Progress:</strong></p>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: ${data.pumpFunData.progress};">${data.pumpFunData.progress}</div>
+                            </div>
+                            <p style="text-align: center; margin-top: 5px; font-size: 0.9em;">Towards ${data.pumpFunData.targetMarketCap} for Raydium listing.</p>
+                        </div>
+                        <div class="trade-section">
+                            <h3>Trade on pump.fun</h3>
+                            <div class="trade-actions">
+                                <input type="number" id="solAmount" placeholder="Amount in SOL">
+                                <button onclick="buyToken()" style="background-color: #28a745;">Buy</button>
+                                <button onclick="sellToken()" style="background-color: #dc3545;">Sell</button>
+                            </div>
+                            <div id="tradeStatus"></div>
+                            <p style="font-size: 0.8em; text-align: center; margin-top: 10px; color: #6c757d;">
+                                This will prompt a transaction in your wallet. A 1% fee is paid to pump.fun.
+                            </p>
+                        </div>
+                        <div id="transaction-result" style="margin-top:15px; text-align:center; word-break: break-all;">
+                            <!-- Transaction results will be shown here -->
+                        </div>`;
+                }
+                displayArea.innerHTML = `
+                    <div class="token-data">
+                        <p><strong>Pair:</strong> ${data.baseToken.symbol} / ${data.quoteToken.symbol}</p>
+                        <p><strong>Price (USD):</strong> <span id="livePrice">${formattedPrice}</span></p>
+                        <p><strong>Liquidity:</strong> ${formattedLiquidity}</p>
+                        <p><strong>24h Volume:</strong> ${formattedVolume}</p>
+                        <p><strong>DexScreener:</strong> <a href="${data.url}" target="_blank" rel="noopener noreferrer">${data.pairAddress}</a></p>
+                    </div>
+                    ${pumpFunHtml}
+                `;
+ 
+                // Animate the progress bar after it has been rendered
+                // Using a timeout to ensure the element is in the DOM
+                setTimeout(() => { document.querySelector('.progress-bar')?.style.setProperty('width', data.pumpFunData?.progress || '0%'); }, 100);
+ 
+                // Start auto-updating the price every 20 seconds
+                priceUpdateInterval = setInterval(updatePrice, 15000);
+ 
+            } catch (error) {
+                console.error('Error fetching token data:', error);
+                displayArea.innerHTML = `<p class="error-message">An error occurred while fetching data: ${error.message}</p>`;
+            } finally {
+                // Re-enable form regardless of outcome
+                tokenInput.disabled = false;
+                getDataButton.disabled = false;
+                getDataButton.innerHTML = originalButtonText.replace(/ <span class="loader"><\/span>$/, '');
+            }
+        }
+ 
+        // Function to update only the price
+        async function updatePrice() {
+            if (!currentTokenAddress) return;
+ 
+            try {
+                const response = await fetch('/get_token_data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token_identifier: currentTokenAddress }),
+                });
+ 
+                if (!response.ok) {
+                    console.error('Failed to update price.');
+                    // Optionally stop the interval if the token becomes invalid
+                    // clearInterval(priceUpdateInterval);
+                    return;
+                }
+ 
+                const data = await response.json();
+                const livePriceElement = document.getElementById('livePrice');
+                if (livePriceElement && data.priceUsd) {
+                    const newPrice = parseFloat(data.priceUsd);
+                    const formattedPrice = `$${newPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 10 })}`;
+                   
+                    // Add flash effect based on price change
+                    livePriceElement.classList.remove('price-up', 'price-down'); // Reset classes
+                    if (newPrice > lastPriceUsd) {
+                        livePriceElement.classList.add('price-up');
+                    } else if (newPrice < lastPriceUsd) {
+                        livePriceElement.classList.add('price-down');
+                    }
+                   
+                    livePriceElement.textContent = formattedPrice;
+                    lastPriceUsd = newPrice; // Update the last known price
+ 
+                    setTimeout(() => livePriceElement.classList.remove('price-up', 'price-down'), 700); // Clean up class after animation
+                }
+            } catch (error) {
+                console.error('Error updating price:', error);
+            }
+ 
+        }
+ 
+        // Allows pressing Enter key in the input field to trigger data fetch
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                fetchTokenData();
+            }
+        }
+    </script>
+    <script>
+        // Trading functions for pump.fun
+        const PUMP_FUN_PROGRAM_ID = new solanaWeb3.PublicKey('6EF8rrecthR5DkVAW9an81KwbexwRrxWrSovVG3M2JyA');
+        const PUMP_FUN_ACCOUNT = new solanaWeb3.PublicKey('4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjax2M');
+        const FEE_RECIPIENT = new solanaWeb3.PublicKey('CebN5WGQ4g2ffA9hJmbtrfV8sR4owsb2kmsADjetx55p');
+        const SOL_MINT = new solanaWeb3.PublicKey('So11111111111111111111111111111111111111112');
+ 
+        async function getAssociatedTokenAddress(mint, owner) {
+            const [ata] = await solanaWeb3.PublicKey.findProgramAddress(
+                [owner.toBuffer(), solanaWeb3.TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+                solanaWeb3.ASSOCIATED_TOKEN_PROGRAM_ID
+            );
+            return ata;
+        }
+ 
+        async function sendTransaction(instruction) {
+            const tradeStatus = document.getElementById('tradeStatus');
+            if (!isWalletConnected || !walletProvider || !userPublicKey) {
+                tradeStatus.innerHTML = `<span class="error-message">Please connect your wallet first.</span>`;
+                return;
+            }
+ 
+            tradeStatus.textContent = 'Preparing transaction...';
+ 
+            try {
+                const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'), 'confirmed');
+                const transaction = new solanaWeb3.Transaction();
+                transaction.add(instruction);
+ 
+                transaction.feePayer = userPublicKey;
+                const { blockhash } = await connection.getLatestBlockhash();
+                transaction.recentBlockhash = blockhash;
+ 
+                tradeStatus.textContent = 'Please approve the transaction in your wallet...';
+ 
+                const signedTransaction = await walletProvider.signTransaction(transaction);
+                const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+ 
+                tradeStatus.innerHTML = `Transaction sent! Confirming... <a href="https://solscan.io/tx/${signature}" target="_blank">View on Solscan</a>`;
+ 
+                await connection.confirmTransaction(signature, 'confirmed');
+ 
+                tradeStatus.innerHTML = `<span style="color: green;">Transaction confirmed!</span> <a href="https://solscan.io/tx/${signature}" target="_blank">View on Solscan</a>`;
+                fetchTokenData(); // Refresh data after trade
+            } catch (error) {
+                console.error("Transaction failed:", error);
+                tradeStatus.innerHTML = `<span class="error-message">Transaction failed: ${error.message}</span>`;
+            }
+        }
+ 
+        async function buyToken() {
+            const solAmount = document.getElementById('solAmount').value;
+            if (!solAmount || parseFloat(solAmount) <= 0) {
+                document.getElementById('tradeStatus').innerHTML = `<span class="error-message">Please enter a valid SOL amount.</span>`;
+                return;
+            }
+ 
+            const solAmountLamports = new solanaWeb3.BN(parseFloat(solAmount) * solanaWeb3.LAMPORTS_PER_SOL);
+ 
+            const tokenMint = new solanaWeb3.PublicKey(currentTokenAddress);
+            const [bondingCurve] = await solanaWeb3.PublicKey.findProgramAddress([Buffer.from('bonding-curve'), tokenMint.toBuffer()], PUMP_FUN_PROGRAM_ID);
+            const [associatedBondingCurve] = await solanaWeb3.PublicKey.findProgramAddress([bondingCurve.toBuffer(), SOL_MINT.toBuffer()], solanaWeb3.ASSOCIATED_TOKEN_PROGRAM_ID);
+            const userAta = await getAssociatedTokenAddress(tokenMint, userPublicKey);
+ 
+            const instruction = solanaWeb3.SystemProgram.transfer({
+                fromPubkey: userPublicKey,
+                toPubkey: bondingCurve, // This is a simplified representation. A real buy instruction is more complex.
+                lamports: solAmountLamports,
+            });
+           
+            // NOTE: This is a placeholder for the actual complex pump.fun buy instruction.
+            // A real implementation requires building the full instruction with all accounts.
+            document.getElementById('tradeStatus').innerHTML = `<span class="error-message">Live trading is complex. This button demonstrates the UI flow.</span>`;
+            // await sendTransaction(instruction); // This would be the call with a real instruction
+        }
+ 
+        async function sellToken() {
+            const solAmount = document.getElementById('solAmount').value; // This should be token amount for selling
+            if (!solAmount || parseFloat(solAmount) <= 0) {
+                document.getElementById('tradeStatus').innerHTML = `<span class="error-message">Please enter a valid amount to sell.</span>`;
+                return;
+            }
+           
+            // NOTE: This is a placeholder for the actual complex pump.fun sell instruction.
+            document.getElementById('tradeStatus').innerHTML = `<span class="error-message">Live trading is complex. This button demonstrates the UI flow.</span>`;
+        }
+ 
+    </script>
+</body>
+</html>
