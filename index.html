@@ -1,43 +1,40 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Solana Mini Dex Dashboard — Coin98 (Mainnet)</title>
-<meta name="description" content="Mini DexScreener-style dashboard. Coin98-only. Mainnet Jupiter quotes + manual swaps."/>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Solana Manual Trade — Coin98 (Mainnet)</title>
 <style>
-  :root{
-    --bg:#07182a; --panel:rgba(255,255,255,0.04);
-    --accent:#00d36a; --muted:#90bcd9; --danger:#ff6b6b;
-  }
-  html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial,sans-serif;background:linear-gradient(180deg,#022636,#001827);color:#eaf6ff}
-  .wrap{max-width:980px;margin:18px auto;padding:14px;display:grid;gap:12px}
-  h1{margin:0;font-size:20px}
-  .muted{color:var(--muted);font-size:13px}
+  :root{--bg:#071827;--panel:rgba(255,255,255,0.03);--accent:#00d36a;--muted:#97bcd6;--danger:#ff6b6b}
+  body{margin:0;font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,#022636,#001827);color:#ecf8ff}
+  .wrap{max-width:980px;margin:18px auto;padding:16px;display:grid;gap:14px}
   .panel{background:var(--panel);padding:12px;border-radius:10px}
+  h1{margin:0 0 6px 0;font-size:20px}
+  .muted{color:var(--muted);font-size:13px}
   .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   input,select,button{padding:10px;border-radius:8px;border:none;background:rgba(255,255,255,0.02);color:inherit}
-  button{background:var(--accent);color:#012;border-radius:8px;cursor:pointer;font-weight:700}
+  button{cursor:pointer}
+  button.primary{background:var(--accent);color:#012;font-weight:700;border-radius:8px}
   button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#cfe}
-  .chart-mini{height:220px;border-radius:8px;overflow:hidden;margin-top:10px;border:1px solid rgba(255,255,255,0.03)}
+  .chart-mini{height:220px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,0.03)}
   iframe{width:100%;height:100%;border:0}
   .log{font-family:monospace;background:#001b33;padding:10px;border-radius:8px;color:#9ff3d0;max-height:220px;overflow:auto}
   .small{font-size:13px}
-  footer{font-size:13px;color:#a9cfe7}
-  a.ghost{background:transparent;color:#cfe;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);text-decoration:none}
+  footer{font-size:13px;color:#bcd}
+  a { color: #cfe; text-decoration: none; }
   @media(max-width:720px){.chart-mini{height:180px}}
 </style>
 </head>
 <body>
   <div class="wrap">
     <header>
-      <h1>Solana Mini Dex Dashboard (Mainnet)</h1>
-      <div class="muted">Mini DexScreener chart (default: SOL). Coin98-only wallet — manual SOL → token trades via Jupiter.</div>
+      <h1>Solana Manual Trade (Mainnet)</h1>
+      <div class="muted">Paste a token mint, fetch a Jupiter quote, sign with Coin98 to execute. Embedded mini DexScreener chart below.</div>
     </header>
 
     <div class="panel row" style="justify-content:space-between;align-items:center">
       <div class="row">
-        <button id="connectBtn">Connect Coin98</button>
+        <button id="connectBtn" class="primary">Connect Coin98</button>
         <div id="walletShort" class="muted small" style="margin-left:8px">Not connected</div>
       </div>
       <div class="muted small">Network: <strong>mainnet-beta</strong></div>
@@ -46,10 +43,10 @@
     <div class="panel">
       <div class="row" style="justify-content:space-between;align-items:center">
         <div class="row" style="align-items:center;gap:10px">
-          <input id="mintInput" placeholder="Paste token mint (leave blank = SOL default)" style="min-width:260px"/>
+          <input id="mintInput" placeholder="Paste token mint (leave blank = SOL)" style="min-width:220px" />
           <select id="quick">
             <option value="">Quick pick</option>
-            <option value="So11111111111111111111111111111111111111112">SOL (wSOL)</option>
+            <option value="So11111111111111111111111111111111111111112">SOL</option>
             <option value="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v">USDC</option>
             <option value="DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjr9mXAdrsXgPa">BONK</option>
           </select>
@@ -70,24 +67,25 @@
         </div>
       </div>
 
-      <div class="chart-mini" id="chartWrap">
+      <div class="chart-mini" id="chartWrap" style="margin-top:10px">
+        <!-- DexScreener default page; script updates src with selected mint -->
         <iframe id="dexFrame" src="https://dexscreener.com/solana" title="Dexscreener mini"></iframe>
       </div>
     </div>
 
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><strong>Trade (Manual) — default: SOL → token</strong></div>
-        <div class="muted small">You must confirm each transaction in Coin98</div>
+        <div><strong>Trade (Manual)</strong></div>
+        <div class="muted small">You must approve every transaction in Coin98</div>
       </div>
 
       <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <div style="min-width:120px">
           <div class="small muted">Amount (SOL or token)</div>
-          <input id="amount" placeholder="e.g. 0.1"/>
+          <input id="amount" placeholder="e.g. 0.1" />
         </div>
 
-        <div style="min-width:140px">
+        <div style="min-width:150px">
           <div class="small muted">Side</div>
           <select id="side">
             <option value="sol-to-token">Buy (SOL → token)</option>
@@ -97,12 +95,12 @@
 
         <div style="min-width:110px">
           <div class="small muted">Slippage %</div>
-          <input id="slippage" value="1"/>
+          <input id="slippage" value="1" />
         </div>
 
         <div style="margin-left:auto;display:flex;gap:8px">
           <button id="quoteBtn" class="ghost">Get Quote</button>
-          <button id="executeBtn">Execute (Sign & Send)</button>
+          <button id="executeBtn" class="primary">Execute (Sign & Send)</button>
           <a id="openJupiter" class="ghost" target="_blank" rel="noopener">Open Jupiter</a>
         </div>
       </div>
@@ -124,31 +122,35 @@
 
       <div style="flex:1;min-width:260px">
         <div><strong>Logs</strong></div>
-        <div id="log" class="log" style="margin-top:8px">Logs will appear here. Approve carefully.</div>
+        <div id="log" class="log" style="margin-top:8px">Logs appear here. Verify transactions carefully.</div>
       </div>
     </div>
 
     <footer class="panel">
       <div style="font-weight:700;color:var(--danger)">Warning & safety</div>
       <div class="muted small" style="margin-top:6px">
-        This UI constructs **real mainnet** transactions. Always verify the token mint, route, and amounts in the wallet popup before signing.
-        Test with a tiny amount first. I can provide a devnet variant on request.
+        This UI constructs real mainnet transactions. Test with a very small amount first. Only open this page inside the Coin98 mobile browser to connect & sign.
       </div>
     </footer>
   </div>
 
 <script type="module">
-/* ---------- Config ---------- */
+/* -----------------------------------------------------------
+  Single-file frontend:
+  - Detects Coin98 (window.coin98.sol)
+  - Uses Jupiter v6 quote + swap-build endpoints
+  - Embeds DexScreener mini chart
+  - Produces real mainnet transactions (you must confirm signing)
+----------------------------------------------------------- */
 import { Connection, Transaction, PublicKey } from "https://esm.sh/@solana/web3.js@1.95.1";
+
 const RPC = "https://api.mainnet-beta.solana.com";
 const connection = new Connection(RPC, "confirmed");
 const JUPITER_QUOTE = "https://quote-api.jup.ag/v6/quote";
-const JUPITER_SWAP = "https://quote-api.jup.ag/v6/swap"; // v6 swap build
-const DEXSCREENER_API = "https://api.dexscreener.com/latest/dex/tokens/";
-const SOL_MINT = "So11111111111111111111111111111111111111112"; // wrapped SOL (use for Jupiter)
-const DEFAULT_MINT = SOL_MINT; // default is SOL
+const JUPITER_SWAP  = "https://quote-api.jup.ag/v6/swap";
+const DEXS_API = "https://api.dexscreener.com/latest/dex/tokens/";
+const SOL_MINT = "So11111111111111111111111111111111111111112";
 
-/* ---------- DOM ---------- */
 const dexFrame = document.getElementById('dexFrame');
 const mintInput = document.getElementById('mintInput');
 const quick = document.getElementById('quick');
@@ -171,14 +173,12 @@ const executeBtn = document.getElementById('executeBtn');
 const quoteBox = document.getElementById('quoteBox');
 const openJupiter = document.getElementById('openJupiter');
 
-/* ---------- State ---------- */
 let provider = null;
 let connectedPubkey = null;
-let selectedMint = DEFAULT_MINT;
+let selectedMint = SOL_MINT;
 let lastQuote = null;
 let watchlist = JSON.parse(localStorage.getItem('watchlist_v2') || '[]');
 
-/* ---------- Helpers ---------- */
 function log(msg){
   logEl.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}<br>` + logEl.innerHTML;
   console.debug(msg);
@@ -186,7 +186,6 @@ function log(msg){
 function short(s){ return (s||'').slice(0,6) + '...' + (s||'').slice(-4); }
 function looksLikeKey(v){ try { new PublicKey(v); return true } catch(e){ return false } }
 
-/* ---------- Provider detection: Coin98 only ---------- */
 function detectProvider(){
   if (window.coin98 && window.coin98.sol) {
     provider = window.coin98.sol;
@@ -194,45 +193,36 @@ function detectProvider(){
     connectBtn.textContent = 'Connect Coin98';
   } else {
     provider = null;
-    log('Coin98 provider not detected — open this page inside the Coin98 in-app browser.');
+    log('Coin98 not detected — open inside Coin98 browser.');
     connectBtn.textContent = 'Open in Coin98';
   }
 }
 
 async function connectWallet(){
-  if (!provider) { alert('Open this page in Coin98 in-app browser to connect'); return; }
+  if (!provider) { alert('Open this page in the Coin98 in-app browser to connect'); return; }
   try {
-    // Coin98 has different flavors; try connect() then fallback to request.
     let resp;
-    if (provider.connect) {
-      resp = await provider.connect();
-    } else {
-      resp = await provider.request({ method: 'connect' });
-    }
-    // resp may include publicKey or be a string
+    if (provider.connect) resp = await provider.connect();
+    else resp = await provider.request({ method: 'connect' });
     let pub = null;
     if (resp?.publicKey) pub = resp.publicKey.toString();
     if (!pub && resp?.toString) pub = resp.toString();
-    if (!pub && resp) pub = resp;
     connectedPubkey = pub;
     walletShort.textContent = `Connected: ${short(pub)}`;
-    log('Wallet connected: ' + pub);
+    log('Connected: ' + pub);
   } catch(e){
     walletShort.textContent = 'Connection rejected';
-    log('Connect error: ' + (e.message || e));
+    log('Connect error: ' + (e.message||e));
   }
 }
 
-/* ---------- Dexscreener mini chart + price ---------- */
 async function loadDexscreenerFor(mint){
-  const query = mint || DEFAULT_MINT;
-  // Use search to land on token page if available, else fallback to chain page
-  dexFrame.src = 'https://dexscreener.com/solana/' + (mint ? encodeURIComponent(mint) : '');
-  // update header
+  const query = mint || SOL_MINT;
   tokenHeader.textContent = 'Selected: ' + (mint ? short(mint) : 'SOL (default)');
   tokenSub.textContent = 'Loading price…';
   try {
-    const res = await fetch(DEXSCREENER_API + query);
+    dexFrame.src = 'https://dexscreener.com/solana/' + encodeURIComponent(query);
+    const res = await fetch(DEXS_API + query);
     if (!res.ok) throw new Error('Dexscreener API ' + res.status);
     const json = await res.json();
     const p = (json?.pairs && json.pairs[0]) || null;
@@ -240,62 +230,32 @@ async function loadDexscreenerFor(mint){
       const priceUsd = p.priceUsd || p.price;
       const change = p.priceChange || p.priceChangePercent || '';
       tokenSub.textContent = priceUsd ? `Price: $${Number(priceUsd).toFixed(6)} • 24h: ${change}%` : 'Price: N/A';
-      log('Dexscreener data loaded for ' + query);
+      log('Dexscreener loaded for ' + query);
     } else {
-      tokenSub.textContent = 'Price/pair not found on Dexscreener';
-      log('Dex no pairs for ' + query);
+      tokenSub.textContent = 'No pair found on Dexscreener';
+      log('Dex: no pairs for ' + query);
     }
-  } catch(err){
-    tokenSub.textContent = 'Dexscreener load error';
-    log('Dex fetch error: ' + (err.message || err));
-  }
+  } catch(err){ tokenSub.textContent = 'Dex load error'; log('Dex fetch error: ' + (err.message||err)); }
 }
 
-/* ---------- Watchlist ---------- */
-function renderWatchlist(){
-  if (!watchlist || watchlist.length === 0) {
-    watchlistEl.innerHTML = '<div class="muted small">Empty</div>';
-    return;
-  }
-  watchlistEl.innerHTML = watchlist.map(m=>`<div style="display:flex;justify-content:space-between;align-items:center"><div style="word-break:break-all">${m}</div><div><button class="ghost" onclick="(function(){ window.selectWatch('${m}') })()">View</button></div></div>`).join('');
-  window.selectWatch = (m)=>{ mintInput.value = m; submitBtn.click(); }
-}
-exportWL.onclick = () => {
-  const blob = new Blob([watchlist.join('\n')], {type:'text/plain'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'watchlist.txt'; a.click();
-};
-clearWL.onclick = () => {
-  if (!confirm('Clear watchlist?')) return;
-  watchlist = [];
-  localStorage.setItem('watchlist_v2', JSON.stringify(watchlist));
-  renderWatchlist();
-  log('Watchlist cleared');
-};
-
-/* ---------- Jupiter Quote & Swap ---------- */
 function toLamports(amountSol){
-  // careful integer conversion
   return Math.round(Number(amountSol) * 1_000_000_000);
 }
 function toTokenSmall(amount, decimals=6){
-  // token decimals unknown: default to 6 (many SPL tokens use 6)
-  const pow = Math.pow(10, decimals);
-  return Math.round(Number(amount) * pow);
+  return Math.round(Number(amount) * Math.pow(10, decimals));
 }
 
 async function getJupiterQuote(inputMint, outputMint, amount, slippage){
-  // amount should be in smallest unit (lamports for SOL; token smallest otherwise)
-  // Use v6 quote endpoint with query params
   const url = new URL(JUPITER_QUOTE);
   url.searchParams.set('inputMint', inputMint);
   url.searchParams.set('outputMint', outputMint);
   url.searchParams.set('amount', String(amount));
-  url.searchParams.set('slippageBps', String(Math.round(slippage * 100))); // e.g. 1% -> 100
+  url.searchParams.set('slippageBps', String(Math.round(slippage*100)));
   log('Requesting Jupiter quote...');
   const res = await fetch(url.toString());
   if (!res.ok) {
     const body = await res.text();
-    throw new Error('Jupiter quote HTTP ' + res.status + ' — ' + body.slice(0,400));
+    throw new Error('Quote HTTP ' + res.status + ' - ' + body.slice(0,500));
   }
   const j = await res.json();
   if (!j || !j.data || j.data.length === 0) throw new Error('No routes returned by Jupiter');
@@ -303,102 +263,76 @@ async function getJupiterQuote(inputMint, outputMint, amount, slippage){
 }
 
 async function buildJupiterSwap(route, userPublicKey){
-  // v6 swap build usually expects POST with route and userPublicKey
   const body = { route, userPublicKey };
   const res = await fetch(JUPITER_SWAP, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
   if (!res.ok) {
     const txt = await res.text();
-    throw new Error('Jupiter swap build failed: ' + res.status + ' - ' + txt.slice(0,500));
+    throw new Error('Swap build failed: ' + res.status + ' - ' + txt.slice(0,1000));
   }
   return await res.json();
 }
 
-/* ---------- UI events ---------- */
-async function selectMint(mint){
-  if (!mint) mint = DEFAULT_MINT;
-  selectedMint = mint;
-  mintInput.value = mint;
-  await loadDexscreenerFor(mint);
-}
-
+/* UI handlers */
 submitBtn.addEventListener('click', async ()=>{
-  const v = (mintInput.value || '').trim();
-  if (!v) { await selectMint(DEFAULT_MINT); return; }
-  if (!looksLikeKey(v)) { alert('Invalid Solana mint/public key'); return; }
-  await selectMint(v);
+  const v = (mintInput.value||'').trim();
+  if (!v) { selectedMint = SOL_MINT; await loadDexscreenerFor(SOL_MINT); return; }
+  if (!looksLikeKey(v)) return alert('Invalid mint');
+  selectedMint = v;
+  await loadDexscreenerFor(v);
   if (!watchlist.includes(v)) { watchlist.unshift(v); localStorage.setItem('watchlist_v2', JSON.stringify(watchlist)); renderWatchlist(); }
 });
+quick.addEventListener('change', ()=>{ if(quick.value){ mintInput.value=quick.value; submitBtn.click(); }});
+openDexBtn.addEventListener('click', ()=> window.open('https://dexscreener.com/solana','_blank'));
+addWatch.addEventListener('click', ()=>{ const m=(mintInput.value||'').trim(); if(!m||!looksLikeKey(m)) return alert('Select valid mint'); if(!watchlist.includes(m)){ watchlist.unshift(m); localStorage.setItem('watchlist_v2',JSON.stringify(watchlist)); renderWatchlist(); log('Added '+m);} });
 
-quick.addEventListener('change', ()=>{ if (quick.value) { mintInput.value = quick.value; submitBtn.click(); }});
-openDexBtn.addEventListener('click', ()=>{ window.open('https://dexscreener.com/solana','_blank') });
-addWatch.addEventListener('click', ()=>{ const m=(mintInput.value||'').trim(); if (!m||!looksLikeKey(m)) return alert('Select valid mint'); if(!watchlist.includes(m)){ watchlist.unshift(m); localStorage.setItem('watchlist_v2',JSON.stringify(watchlist)); renderWatchlist(); log('Added to watchlist: '+m);} });
+exportWL.addEventListener('click', ()=>{ const blob = new Blob([watchlist.join('\n')], {type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='watchlist.txt'; a.click();});
+clearWL.addEventListener('click', ()=>{ if(!confirm('Clear watchlist?')) return; watchlist=[]; localStorage.setItem('watchlist_v2',JSON.stringify(watchlist)); renderWatchlist(); log('Watchlist cleared');});
 
-/* ---------- Quote flow ---------- */
 quoteBtn.addEventListener('click', async ()=>{
   try {
     quoteBox.textContent = 'Requesting Jupiter quote...';
-    const mint = selectedMint || DEFAULT_MINT;
-    if (!mint) return alert('Select token/mint first');
+    const mint = selectedMint || SOL_MINT;
+    if (!mint) return alert('Select token first');
     const side = sideSelect.value;
     const amountUi = Number(amountInput.value);
-    if (!amountUi || amountUi <= 0) return alert('Enter a valid amount');
+    if (!amountUi || amountUi <= 0) return alert('Enter amount');
     const slippage = Number(slippageInput.value) || 1;
-
     const isBuy = side === 'sol-to-token';
     const inputMint = isBuy ? SOL_MINT : mint;
     const outputMint = isBuy ? mint : SOL_MINT;
-
     const amountSmall = isBuy ? toLamports(amountUi) : toTokenSmall(amountUi, 6);
-
-    // Request Jupiter quote
     const q = await getJupiterQuote(inputMint, outputMint, amountSmall, slippage);
     const best = q.data[0];
     lastQuote = best;
-    // estimate out amount using decimals guess
-    const outDecimals = (outputMint === SOL_MINT) ? 9 : 6;
+    const outDecimals = outputMint === SOL_MINT ? 9 : (best?.outAmountDecimals || 6);
     const outUi = (best.outAmount || 0) / Math.pow(10, outDecimals);
-    quoteBox.innerHTML = `Estimated out: ${outUi.toFixed(6)} (route length ${best.marketInfos?.length || 0})`;
+    quoteBox.innerHTML = `Estimated out: ${outUi.toFixed(6)} • route markets: ${best.marketInfos?.length||0}`;
     openJupiter.href = `https://jup.ag/swap?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountSmall}&slippage=${Math.round(slippage*100)}`;
-    log('Quote success; best route stored.');
-  } catch(e){
-    quoteBox.textContent = 'Quote error: ' + (e.message || e);
-    log('Quote error: ' + (e.message || e));
-    lastQuote = null;
-  }
+    log('Quote ready');
+  } catch(e){ quoteBox.textContent = 'Quote error: ' + (e.message||e); log('Quote error: ' + (e.message||e)); lastQuote = null; }
 });
 
-/* ---------- Execute flow (build, sign, send) ---------- */
 executeBtn.addEventListener('click', async ()=>{
   if (!lastQuote) return alert('Get a quote first');
-  if (!provider) return alert('Open page inside Coin98 in-app browser to sign');
-  if (!connectedPubkey) {
-    await connectWallet();
-    if (!connectedPubkey) return alert('Connect wallet first');
-  }
-  if (!confirm('This will build a MAINNET swap transaction and ask Coin98 to sign it. Confirm you understand and want to proceed.')) return;
-
+  if (!provider) return alert('Open this page in the Coin98 in-app browser to sign');
+  if (!connectedPubkey) { await connectWallet(); if(!connectedPubkey) return alert('Connect wallet first'); }
+  if (!confirm('This will build a MAINNET swap transaction and request a signature in your wallet. Continue?')) return;
   try {
-    // Build swap using Jupiter's v6 swap build
     const route = lastQuote;
     const build = await buildJupiterSwap(route, connectedPubkey);
-    // build.swapTransaction (base64) expected
     if (!build || !build.swapTransaction) throw new Error('No swap transaction returned from Jupiter');
     const b64 = build.swapTransaction;
     const raw = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
     const tx = Transaction.from(raw);
-
-    log('Requesting wallet signature — inspect the transaction carefully.');
+    log('Requesting wallet signature — inspect popup carefully.');
     let signed;
     if (provider.signTransaction) {
       signed = await provider.signTransaction(tx);
     } else if (provider.request) {
-      // fallback attempt
       signed = await provider.request({ method: 'signTransaction', params: { transaction: b64 }});
     } else {
-      throw new Error('Coin98 provider does not support programmatic signTransaction');
+      throw new Error('Coin98 provider missing signTransaction.');
     }
-
-    // signed may be Transaction object or object with serialize
     const serialized = signed.serialize ? signed.serialize() : (signed.raw || signed);
     const txid = await connection.sendRawTransaction(serialized, { skipPreflight: false });
     log('Submitted tx: ' + txid);
@@ -406,24 +340,21 @@ executeBtn.addEventListener('click', async ()=>{
     await connection.confirmTransaction(txid, 'confirmed');
     log('Transaction confirmed: ' + txid);
     alert('Swap confirmed: ' + txid);
-  } catch(e){
-    log('Execution error: ' + (e.message || e));
-    alert('Swap failed: ' + (e.message || e));
-  }
+  } catch(e) { log('Execution error: ' + (e.message||e)); alert('Swap failed: ' + (e.message||e)); }
 });
 
-/* ---------- Init ---------- */
+/* connect & init */
 connectBtn.addEventListener('click', connectWallet);
-submitBtn.addEventListener('click', ()=>{ /* handled above */ });
+
+function renderWatchlist(){ if(!watchlist||watchlist.length===0){ watchlistEl.innerHTML='<div class="muted small">Empty</div>'; return } watchlistEl.innerHTML = watchlist.map(m=>`<div style="display:flex;justify-content:space-between;align-items:center"><div style="word-break:break-all">${m}</div><div><button class="ghost" onclick="(function(){ window.selectWatch('${m}') })()">View</button></div></div>`).join(''); window.selectWatch = (m)=>{ mintInput.value=m; submitBtn.click(); } }
 
 async function init(){
   detectProvider();
   renderWatchlist();
-  await selectMint(DEFAULT_MINT);
-  log('Ready. Open this page inside Coin98 browser for signing.');
+  await loadDexscreenerFor(SOL_MINT);
+  log('Ready. Open inside Coin98 to trade (mainnet).');
 }
 window.addEventListener('load', init);
-
 </script>
 </body>
 </html>
