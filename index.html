@@ -1,158 +1,287 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🚀 Solana Dashboard | Coin98 Compatible</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Solana Dashboard — Coin98</title>
   <style>
-    body {
-      font-family: "Poppins", sans-serif;
-      text-align: center;
-      background: linear-gradient(180deg, #5b00ff, #8a2be2);
-      color: white;
-      margin: 0;
-      padding: 20px;
-    }
-    h1 { font-size: 2rem; margin-bottom: 5px; }
-    .card {
-      background: white;
-      color: #222;
-      border-radius: 12px;
-      padding: 20px;
-      margin: 20px auto;
-      width: 90%;
-      max-width: 420px;
-      box-shadow: 0px 3px 12px rgba(0, 0, 0, 0.2);
-    }
-    button {
-      background: linear-gradient(90deg, #00bcd4, #00c6ff);
-      border: none;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 1rem;
-      margin-top: 10px;
-      width: 100%;
-    }
-    button:hover { opacity: 0.9; }
-    input {
-      width: 100%;
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      margin-bottom: 10px;
-    }
-    .status {
-      margin: 10px 0;
-      padding: 10px;
-      border-radius: 8px;
-      font-weight: 500;
-    }
-    .success { background: #d4edda; color: #155724; }
-    .error { background: #f8d7da; color: #721c24; }
-    .token-buttons button { width: 45%; margin: 5px; }
+    :root{--accent:#00d4aa;--bg1:#6b46c1;--bg2:#9f7aea}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;margin:0;background:linear-gradient(135deg,var(--bg1),var(--bg2));color:#fff;min-height:100vh}
+    .wrap{max-width:760px;margin:24px auto;padding:18px}
+    header{text-align:center;margin-bottom:18px}
+    h1{margin:6px 0;font-size:28px}
+    p.lead{margin:0;color:rgba(255,255,255,.9)}
+    .card{background:#fff;color:#222;border-radius:14px;padding:18px;margin:18px 0;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+    .btn{background:linear-gradient(90deg,var(--accent),#00b894);border:none;color:#fff;padding:12px 16px;border-radius:10px;font-weight:700;cursor:pointer;width:100%}
+    .muted{color:#666;font-size:14px}
+    input[type="text"]{width:100%;padding:12px;border-radius:10px;border:1px solid #e6e6e6;font-size:15px}
+    .small{font-size:13px;color:#666}
+    .result-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
+    .chip{background:#f5f5f5;padding:8px 12px;border-radius:999px;color:#333}
+    .ok{background:#d4edda;color:#155724;padding:10px;border-radius:8px}
+    .err{background:#f8d7da;color:#721c24;padding:10px;border-radius:8px}
+    code{background:#f3f4f6;padding:4px 6px;border-radius:6px;font-size:13px}
   </style>
 </head>
 <body>
-  <h1>🚀 Solana Dashboard</h1>
-  <p>Coin98 Compatible</p>
+  <div class="wrap">
+    <header>
+      <h1>🚀 Solana Dashboard</h1>
+      <p class="lead">Coin98-only · token mint/account lookup · balances</p>
+    </header>
 
-  <div id="status" class="status error" style="display:none;"></div>
-
-  <div class="card">
-    <h2>💼 Wallet</h2>
-    <button id="connectBtn">💎 Connect Coin98 Wallet</button>
-    <div id="walletInfo"></div>
-  </div>
-
-  <div class="card">
-    <h2>🔍 Token Search</h2>
-    <input id="tokenAddress" placeholder="Enter Solana token address" />
-    <button id="loadTokenBtn">Load Token</button>
-    <div id="tokenInfo" style="margin-top:10px;"></div>
-    <div class="token-buttons">
-      <button>🟣 SOL</button>
-      <button>💵 USDC</button>
+    <div id="banner" class="card" style="text-align:center;">
+      <div id="banner-msg" class="muted">Open inside the Coin98 browser and connect your wallet.</div>
     </div>
+
+    <div class="card">
+      <h3>💼 Wallet</h3>
+      <button id="connectBtn" class="btn">💎 Connect Coin98 Wallet</button>
+      <div style="margin-top:12px">
+        <div id="walletStatus" class="small muted">Not connected</div>
+        <div id="walletAddr" style="margin-top:8px;font-family:monospace"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🔍 Token lookup (mint or token account)</h3>
+      <input id="tokenInput" type="text" placeholder="Paste mint address or token account address" />
+      <div style="height:12px"></div>
+      <button id="lookupBtn" class="btn">Load token info</button>
+
+      <div id="tokenResult" style="margin-top:14px"></div>
+    </div>
+
+    <footer style="text-align:center;color:rgba(255,255,255,.9);margin-top:8px">
+      Built by millitradez — Coin98
+    </footer>
   </div>
 
   <script>
-    // ---- WALLET CONNECTION ----
-    const connectBtn = document.getElementById("connectBtn");
-    const walletInfo = document.getElementById("walletInfo");
-    const statusDiv = document.getElementById("status");
+  // ---------- Helper UI ----------
+  const bannerMsg = document.getElementById('banner-msg');
+  const connectBtn = document.getElementById('connectBtn');
+  const walletStatus = document.getElementById('walletStatus');
+  const walletAddrEl = document.getElementById('walletAddr');
+  const lookupBtn = document.getElementById('lookupBtn');
+  const tokenInput = document.getElementById('tokenInput');
+  const tokenResult = document.getElementById('tokenResult');
 
-    async function connectWallet() {
-      if (!window.coin98 || !window.coin98.sol) {
-        statusDiv.style.display = "block";
-        statusDiv.className = "status error";
-        statusDiv.textContent = "❌ Coin98 Wallet not detected. Open in Coin98 browser.";
-        return;
-      }
-      try {
-        const resp = await window.coin98.sol.request({ method: "connect" });
-        const account = resp.publicKey || resp;
-        walletInfo.innerHTML = `✅ <b>Connected:</b> ${account}`;
-        statusDiv.style.display = "block";
-        statusDiv.className = "status success";
-        statusDiv.textContent = "✅ Wallet connected";
-      } catch (err) {
-        console.error(err);
-        statusDiv.style.display = "block";
-        statusDiv.className = "status error";
-        statusDiv.textContent = "❌ Connection failed";
-      }
-    }
+  function showBanner(text, type='info'){
+    bannerMsg.textContent = text;
+    bannerMsg.style.color = (type==='err') ? '#ffdddd' : (type==='ok' ? '#d4ffea' : 'rgba(255,255,255,.9)');
+  }
+  function showResult(html, ok=false){
+    tokenResult.innerHTML = html;
+    tokenResult.className = ok ? 'ok' : 'err';
+  }
 
-    connectBtn.addEventListener("click", connectWallet);
+  // ---------- Solana RPC helper ----------
+  const RPC = "https://api.mainnet-beta.solana.com";
 
-    // ---- TOKEN FETCH (RPC CALL) ----
-    document.getElementById("loadTokenBtn").addEventListener("click", async () => {
-      const tokenAddress = document.getElementById("tokenAddress").value.trim();
-      const tokenInfoDiv = document.getElementById("tokenInfo");
-      tokenInfoDiv.innerHTML = "";
-
-      if (!tokenAddress) {
-        tokenInfoDiv.innerHTML = "⚠️ Please enter a token address.";
-        return;
-      }
-
-      tokenInfoDiv.innerHTML = "⏳ Loading token info...";
-
-      const rpcUrl = "https://api.mainnet-beta.solana.com";
-      const payload = {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "getTokenSupply",
-        params: [tokenAddress]
-      };
-
-      try {
-        const res = await fetch(rpcUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        console.log("Token info:", data);
-
-        if (!data.result || !data.result.value) {
-          tokenInfoDiv.innerHTML = "❌ Invalid token or no supply info found.";
-          return;
-        }
-
-        const { amount, decimals, uiAmount, uiAmountString } = data.result.value;
-        tokenInfoDiv.innerHTML = `
-          ✅ <b>Token Found</b><br>
-          <b>Decimals:</b> ${decimals}<br>
-          <b>Supply:</b> ${uiAmountString || uiAmount || amount}
-        `;
-      } catch (err) {
-        console.error("RPC error:", err);
-        tokenInfoDiv.innerHTML = "❌ Error fetching token info.";
-      }
+  async function rpc(method, params){
+    const payload = { jsonrpc: "2.0", id: 1, method, params };
+    const res = await fetch(RPC, {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
     });
+    if(!res.ok) throw new Error('RPC network error');
+    const body = await res.json();
+    if(body.error) throw new Error(body.error.message || JSON.stringify(body.error));
+    return body.result;
+  }
+
+  // ---------- Wallet (Coin98-only) ----------
+  let coin98Wallet = null;
+  let connectedPubkey = null;
+
+  // waits up to ~5s for injection
+  async function waitForCoin98(timeoutMs=5000){
+    const start = Date.now();
+    while(Date.now() - start < timeoutMs){
+      if(window.coin98 && (window.coin98.sol || window.coin98.provider)) return window.coin98;
+      await new Promise(r => setTimeout(r, 300));
+    }
+    return null;
+  }
+
+  async function connectCoin98(){
+    try {
+      const c98 = await waitForCoin98(6000);
+      if(!c98){
+        showBanner('Coin98 not detected — open inside Coin98 browser', 'err');
+        walletStatus.textContent = 'Not connected';
+        return;
+      }
+      // try connect API forms
+      // some coin98 versions expose `coin98.sol.connect()` or `coin98.sol.request`
+      coin98Wallet = c98.sol || c98.provider || c98;
+      // prefer connect method if available
+      let resp;
+      if(typeof coin98Wallet.connect === 'function'){
+        resp = await coin98Wallet.connect();
+      } else if(typeof coin98Wallet.request === 'function'){
+        // request connect
+        try { resp = await coin98Wallet.request({ method: 'connect' }); }
+        catch(e){ resp = null; }
+      } else {
+        // fallback: ask user to use wallet UI
+        throw new Error('No connect method');
+      }
+
+      // try to get public key
+      let pub;
+      if(resp && resp.publicKey) pub = resp.publicKey;
+      else if(resp && typeof resp === 'string') pub = resp;
+      else if(coin98Wallet.publicKey) pub = coin98Wallet.publicKey;
+      if(!pub && coin98Wallet.isConnected && coin98Wallet.publicKey) pub = coin98Wallet.publicKey;
+
+      if(!pub) {
+        walletStatus.textContent = 'Connected (pubkey unknown)';
+        showBanner('Connected (address not reported)', 'ok');
+      } else {
+        // pub may be object — try toString
+        try { pub = pub.toString(); } catch(e){}
+        connectedPubkey = pub;
+        walletStatus.textContent = 'Connected';
+        walletAddrEl.textContent = pub;
+        showBanner('✅ Wallet connected', 'ok');
+      }
+    } catch(err) {
+      console.error('connect error', err);
+      showBanner('Connection failed — try again inside Coin98', 'err');
+      walletStatus.textContent = 'Not connected';
+    }
+  }
+
+  connectBtn.addEventListener('click', connectCoin98);
+
+  // ---------- Token lookup logic ----------
+  // Steps:
+  // 1) Try treating input as mint -> call getTokenSupply(mint)
+  // 2) If no supply, try treating input as token account -> call getParsedAccountInfo(account)
+  //    extract mint from parsed data
+  // 3) Once we have mint, call getTokenSupply(mint) for supply & decimals
+  // 4) If wallet connected, call getTokenAccountsByOwner(owner, {mint}) to get owner's balance
+
+  async function loadTokenInfo(){
+    tokenResult.innerHTML = '';
+    tokenResult.className = '';
+    const raw = tokenInput.value.trim();
+    if(!raw) { showResult('Enter a mint or token account address'); return; }
+
+    showResult('⏳ Checking address...', false);
+    try {
+      // 1) Try getTokenSupply (mint case)
+      let supplyRes = null;
+      try {
+        supplyRes = await rpc('getTokenSupply', [raw]);
+      } catch(e){
+        supplyRes = null;
+      }
+
+      let mint = null;
+      let tokenAccountInfo = null;
+
+      if(supplyRes && supplyRes.value){
+        // input is a mint
+        mint = raw;
+      } else {
+        // 2) treat as token account / any account
+        // use getParsedAccountInfo to extract parsed token info
+        try {
+          const parsed = await rpc('getParsedAccountInfo', [raw, {encoding: 'jsonParsed'}]);
+          if(parsed && parsed.value && parsed.value.data && parsed.value.data.parsed){
+            const info = parsed.value.data.parsed.info;
+            if(info && info.mint){
+              mint = info.mint;
+              tokenAccountInfo = info; // has tokenAmount, owner, amount etc
+            }
+          }
+        } catch(err){
+          // ignore
+        }
+      }
+
+      if(!mint){
+        showResult('❌ Invalid token or no supply info found.', false);
+        return;
+      }
+
+      // Now we have mint. fetch supply if not done already
+      let supply = supplyRes;
+      if(!supply){
+        try { supply = await rpc('getTokenSupply', [mint]); }
+        catch(e){ supply = null; }
+      }
+
+      if(!supply || !supply.value){
+        showResult('❌ Could not fetch supply for mint: ' + mint, false);
+        return;
+      }
+
+      const decimals = supply.value.decimals;
+      const uiSupply = supply.value.uiAmountString || (supply.value.amount / Math.pow(10, decimals));
+
+      // 3) If wallet connected, get owner's token accounts for this mint
+      let ownerBalanceStr = null;
+      if(connectedPubkey){
+        try {
+          const ownerRes = await rpc('getTokenAccountsByOwner', [connectedPubkey, {mint: mint}, {encoding: 'jsonParsed'}]);
+          // ownerRes.value is array of accounts
+          if(ownerRes && Array.isArray(ownerRes.value) && ownerRes.value.length > 0){
+            // sum uiAmount across token accounts
+            let sum = 0;
+            for(const a of ownerRes.value){
+              const info = a.account?.data?.parsed?.info;
+              if(info && info.tokenAmount && typeof info.tokenAmount.uiAmount === 'number'){
+                sum += info.tokenAmount.uiAmount;
+              }
+            }
+            ownerBalanceStr = String(sum);
+          } else {
+            ownerBalanceStr = "0";
+          }
+        } catch(err){
+          console.warn('owner balance fetch failed', err);
+        }
+      }
+
+      // 4) If we had tokenAccountInfo (user input was a token account), extract its balance
+      let tokenAccountBalanceText = '';
+      if(tokenAccountInfo && tokenAccountInfo.tokenAmount){
+        const ta = tokenAccountInfo.tokenAmount;
+        tokenAccountBalanceText = `Token account balance: ${ta.uiAmount} (raw: ${ta.amount}, decimals: ${ta.decimals})`;
+      }
+
+      // 5) Render results
+      const out = `
+        ✅ <strong>Mint:</strong> <code>${mint}</code><br>
+        <strong>Decimals:</strong> ${decimals}<br>
+        <strong>Total supply:</strong> ${uiSupply}<br>
+        ${ tokenAccountBalanceText ? `<div style="margin-top:8px">${tokenAccountBalanceText}</div>` : '' }
+        ${ ownerBalanceStr !== null ? `<div style="margin-top:8px"><strong>Your balance:</strong> ${ownerBalanceStr}</div>` : '' }
+      `;
+      showResult(out, true);
+
+    } catch(err){
+      console.error('loadTokenInfo error', err);
+      showResult('❌ Error loading token info. Check address and try again.', false);
+    }
+  }
+
+  lookupBtn.addEventListener('click', loadTokenInfo);
+
+  // attempt to auto-detect coin98 on load and show note
+  (async function init(){
+    const c98 = await waitForCoin98(3000);
+    if(c98){
+      showBanner('Coin98 wallet is available — press Connect', 'ok');
+    } else {
+      showBanner('Open this page inside the Coin98 in-app browser to connect your wallet.', 'info');
+    }
+  })();
   </script>
 </body>
 </html>
