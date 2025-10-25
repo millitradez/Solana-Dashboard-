@@ -1,124 +1,152 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MilliTradez Token Dashboard</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🚀 Solana Dashboard</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(180deg, #4c00ff, #a100ff);
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(180deg, #6a11cb, #2575fc);
       color: white;
       text-align: center;
-      padding: 30px;
+      padding: 20px;
+      margin: 0;
+    }
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+    }
+    .section {
+      background: rgba(255,255,255,0.1);
+      padding: 20px;
+      border-radius: 15px;
+      margin: 15px auto;
+      max-width: 420px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
     button {
-      background: #00ffcc;
+      background: #00c3ff;
+      color: white;
       border: none;
-      padding: 12px 24px;
-      margin: 10px;
-      border-radius: 8px;
-      font-size: 16px;
+      padding: 12px 18px;
+      font-size: 1em;
+      border-radius: 10px;
       cursor: pointer;
+      transition: 0.2s;
     }
     button:hover {
-      background: #00e6b8;
+      background: #02b0e4;
     }
     input {
       padding: 10px;
-      border-radius: 6px;
+      width: 90%;
+      border-radius: 10px;
       border: none;
-      width: 80%;
-      margin: 10px auto;
-      display: block;
+      margin-bottom: 10px;
       text-align: center;
     }
-    .card {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      padding: 20px;
-      margin: 15px 0;
-    }
-    #debug {
-      background: black;
-      color: #00ff00;
-      padding: 10px;
-      border-radius: 6px;
-      text-align: left;
+    #debugOutput {
+      background: #111;
+      color: #0f0;
       font-family: monospace;
+      font-size: 0.9em;
+      border-radius: 10px;
+      padding: 10px;
+      text-align: left;
+      overflow-y: auto;
+      max-height: 250px;
       white-space: pre-wrap;
-      overflow-wrap: break-word;
     }
   </style>
 </head>
 <body>
 
-  <h1>💎 MilliTradez Token Dashboard</h1>
+  <h1>🚀 Solana Dashboard</h1>
+  <p>Coin98 Compatible</p>
 
-  <div class="card">
-    <h2>Wallet</h2>
-    <button onclick="connectWallet()">Connect Coin98 Wallet</button>
+  <!-- Wallet Section -->
+  <div class="section">
+    <h2>💼 Wallet</h2>
+    <button id="connectBtn">Connect Coin98 Wallet</button>
     <p id="walletStatus">Not connected</p>
   </div>
 
-  <div class="card">
+  <!-- Token Search Section -->
+  <div class="section">
     <h2>🔍 Token Search</h2>
-    <input id="tokenAddress" placeholder="Enter token address (mint)">
-    <button onclick="loadTokenInfo()">Load Token Info</button>
+    <input id="tokenInput" placeholder="Enter token mint address" />
+    <button id="loadBtn">Load Token Info</button>
   </div>
 
-  <div class="card">
+  <!-- Debug Output -->
+  <div class="section">
     <h2>🐞 Debug Output</h2>
-    <div id="debug">Waiting for logs...</div>
+    <div id="debugOutput">Waiting for logs...</div>
   </div>
 
-  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-  <script>
-    const connection = new solanaWeb3.Connection(
-      "https://mainnet.helius-rpc.com/?api-key=605b36dd-80db-4fe2-a736-68af3b7a82c4
+  <!-- JavaScript -->
+  <script type="module">
+    import {
+      Connection,
+      PublicKey,
+      clusterApiUrl
+    } from "https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.3/+esm";
+
+    const connectBtn = document.getElementById("connectBtn");
+    const loadBtn = document.getElementById("loadBtn");
+    const walletStatus = document.getElementById("walletStatus");
+    const debugOutput = document.getElementById("debugOutput");
+
+    // ✅ Replace YOUR_API_KEY_HERE with your real Solana RPC API key
+    const connection = new Connection(
+      "https://mainnet.helius-rpc.com/?api-key= 605b36dd-80db-4fe2-a736-68af3b7a82c4
+      "confirmed"
     );
 
-    async function connectWallet() {
-      const debug = document.getElementById('debug');
-      try {
-        if (window.coin98 && window.coin98.sol) {
-          await window.coin98.sol.connect();
-          const pubKey = window.coin98.sol.publicKey.toString();
-          document.getElementById('walletStatus').innerText = `✅ Connected: ${pubKey}`;
-          debug.innerText = `Connected wallet: ${pubKey}`;
-        } else {
-          document.getElementById('walletStatus').innerText = '❌ Coin98 not detected';
-          debug.innerText = 'Open this page inside Coin98 browser.';
-        }
-      } catch (err) {
-        console.error(err);
-        document.getElementById('walletStatus').innerText = '❌ Connection failed';
-        debug.innerText = `Connection error: ${err.message}`;
-      }
+    function logDebug(msg) {
+      debugOutput.textContent += `\n${msg}`;
+      debugOutput.scrollTop = debugOutput.scrollHeight;
     }
 
-    async function loadTokenInfo() {
-      const debug = document.getElementById('debug');
-      const tokenAddress = document.getElementById('tokenAddress').value.trim();
-      if (!tokenAddress) {
-        alert('Enter a token address');
+    // --- Connect Wallet Button ---
+    connectBtn.onclick = async () => {
+      if (!window.coin98 || !window.coin98.sol) {
+        alert("Coin98 wallet not detected. Please open this site inside Coin98 or enable its extension.");
+        logDebug("Coin98 wallet not detected.");
+        return;
+      }
+      try {
+        const resp = await window.coin98.sol.request({ method: "connect" });
+        walletStatus.textContent = `Connected: ${resp.publicKey}`;
+        connectBtn.textContent = "✅ Connected";
+        logDebug("Wallet connected: " + resp.publicKey);
+      } catch (err) {
+        walletStatus.textContent = "Connection failed.";
+        connectBtn.textContent = "❌ Failed";
+        logDebug("Wallet connection failed: " + err.message);
+      }
+    };
+
+    // --- Load Token Info Button ---
+    loadBtn.onclick = async () => {
+      const tokenAddr = document.getElementById("tokenInput").value.trim();
+      if (!tokenAddr) {
+        alert("Enter a token mint address first.");
         return;
       }
 
       try {
-        const mintPubkey = new solanaWeb3.PublicKey(tokenAddress);
-        const tokenInfo = await connection.getParsedAccountInfo(mintPubkey);
-
-        if (!tokenInfo || !tokenInfo.value) {
-          debug.innerText = `❌ Could not load token info. Invalid or rate-limited.`;
-        } else {
-          debug.innerText = JSON.stringify(tokenInfo.value.data, null, 2);
-        }
+        const mintPubkey = new PublicKey(tokenAddr);
+        const supplyInfo = await connection.getTokenSupply(mintPubkey);
+        const amount = supplyInfo.value.uiAmountString || "0";
+        logDebug("Token Supply: " + amount);
+        alert(`Token Supply: ${amount}`);
       } catch (err) {
-        console.error(err);
-        debug.innerText = `Error fetching token info: ${err.message}`;
+        logDebug("Error fetching token supply: " + err.message);
+        alert("Invalid token or RPC connection issue.");
       }
-    }
+    };
   </script>
 </body>
 </html>
