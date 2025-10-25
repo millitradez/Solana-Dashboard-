@@ -1,147 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Solana Dashboard</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(to bottom right, #001f3f, #0074D9);
+      background: linear-gradient(145deg, #002b5b, #004080);
       color: #fff;
+      font-family: Arial, sans-serif;
       text-align: center;
-      margin: 0;
-      padding: 0;
+      padding: 40px;
     }
-
-    .container {
-      margin-top: 100px;
-      background: rgba(0, 0, 0, 0.4);
-      border-radius: 10px;
-      padding: 30px;
-      display: inline-block;
-      width: 90%;
-      max-width: 400px;
+    h1 {
+      font-size: 28px;
+      margin-bottom: 20px;
     }
-
     button {
-      background-color: #2ecc40;
+      background: #00c853;
+      color: #fff;
       border: none;
-      color: white;
-      padding: 12px 20px;
-      text-align: center;
-      text-decoration: none;
-      display: inline-block;
-      font-size: 16px;
-      margin: 10px 0;
       border-radius: 6px;
+      padding: 12px 20px;
+      font-size: 16px;
       cursor: pointer;
     }
-
     button:hover {
-      background-color: #3dff63;
+      opacity: 0.9;
     }
-
     input {
+      padding: 10px;
+      font-size: 14px;
       width: 80%;
-      padding: 10px;
-      margin: 10px;
-      border-radius: 5px;
-      border: none;
+      max-width: 320px;
+      margin-top: 15px;
     }
-
-    #debugLog {
-      margin-top: 20px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      padding: 10px;
-      font-size: 12px;
+    .log {
       text-align: left;
-      color: #ddd;
-      white-space: pre-wrap;
+      background: #002040;
+      color: #00e676;
+      padding: 10px;
+      margin: 20px auto;
+      border-radius: 6px;
+      width: 90%;
+      max-width: 400px;
+      height: 140px;
+      overflow-y: auto;
+      font-size: 13px;
+      line-height: 1.4;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>🌐 Solana Dashboard</h2>
-    <button id="connectWalletBtn">Connect Wallet</button>
-    <p id="status">Not Connected</p>
+  <h1>🌐 Solana Dashboard</h1>
+  <button id="connectBtn">Connect Wallet</button>
+  <p id="status">🔴 Not Connected</p>
 
-    <h3>Check Token Price</h3>
-    <input type="text" id="tokenAddress" placeholder="Enter Solana token address">
-    <button id="getPriceBtn">💰 Get Price</button>
+  <h3>Check Token Price</h3>
+  <input id="tokenInput" type="text" placeholder="Enter Solana token address" />
+  <br /><br />
+  <button id="getPriceBtn">💰 Get Price</button>
+  <p id="priceResult">Awaiting Input...</p>
 
-    <div id="priceResult">Awaiting Input...</div>
+  <div class="log" id="debugLog"></div>
 
-    <div id="debugLog">
-      [LOG] Page loaded. Setting up...<br>
-      [LOG] Ready for wallet connection.
-    </div>
-  </div>
+  <script>
+    const statusText = document.getElementById("status");
+    const debugLog = document.getElementById("debugLog");
 
-  <script type="module">
-    import { Connection, clusterApiUrl, PublicKey } from "https://esm.sh/@solana/web3.js@1.95.1";
+    function log(message) {
+      const time = new Date().toLocaleTimeString();
+      debugLog.innerHTML += `[${time}] ${message}<br>`;
+      debugLog.scrollTop = debugLog.scrollHeight;
+    }
 
-    const connectButton = document.querySelector("#connectWalletBtn");
-    const statusText = document.querySelector("#status");
-    const log = document.querySelector("#debugLog");
-    const getPriceBtn = document.querySelector("#getPriceBtn");
-    const tokenAddressInput = document.querySelector("#tokenAddress");
-    const priceResult = document.querySelector("#priceResult");
+    let walletProvider = null;
+    let walletAddress = null;
 
-    const connection = new Connection(clusterApiUrl("mainnet-beta"));
-    let wallet = null;
-
-    function logMessage(msg) {
-      log.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
-      log.scrollTop = log.scrollHeight;
+    async function detectWallet() {
+      if (window.coin98 && window.coin98.sol) {
+        walletProvider = window.coin98.sol;
+        log("Detected Coin98 Wallet ✅");
+      } else if (window.solana && window.solana.isPhantom) {
+        walletProvider = window.solana;
+        log("Detected Phantom Wallet ✅");
+      } else {
+        log("⚠️ No wallet found. Open in Coin98 or Phantom browser.");
+      }
     }
 
     async function connectWallet() {
-      if ("solana" in window) {
-        wallet = window.solana;
-        try {
-          const response = await wallet.connect();
-          const pubkey = response.publicKey.toString();
-          statusText.textContent = `✅ Connected: ${pubkey.slice(0, 4)}...${pubkey.slice(-4)}`;
-          logMessage(`Wallet connected: ${pubkey}`);
-        } catch (err) {
-          statusText.textContent = "❌ Connection rejected";
-          logMessage("Connection rejected by user.");
+      try {
+        if (!walletProvider) {
+          log("No wallet provider detected.");
+          return;
         }
-      } else {
-        alert("No Solana wallet found. Install Phantom or Coin98.");
+
+        log("Requesting wallet connection...");
+        const response = await walletProvider.connect();
+        walletAddress = response.publicKey.toString();
+        statusText.innerHTML = `🟢 Connected: ${walletAddress}`;
+        log(`Connected to wallet: ${walletAddress}`);
+      } catch (err) {
+        log("Connection rejected or failed ❌");
+        console.error(err);
+        statusText.innerHTML = "🔴 Connection rejected";
       }
     }
 
     async function getTokenPrice() {
-      const tokenAddr = tokenAddressInput.value.trim();
-      if (!tokenAddr) {
-        priceResult.textContent = "⚠️ Please enter a token address.";
+      const token = document.getElementById("tokenInput").value.trim();
+      const priceDisplay = document.getElementById("priceResult");
+
+      if (!token) {
+        priceDisplay.innerText = "Please enter a token address.";
         return;
       }
 
       try {
-        const response = await fetch(`https://api.coingecko.com/api/v3/simple/token_price/solana?contract_addresses=${tokenAddr}&vs_currencies=usd`);
-        const data = await response.json();
-        const price = data[tokenAddr.toLowerCase()]?.usd;
+        log(`Fetching price for token: ${token}`);
+        const res = await fetch(
+          `https://api.coingecko.com/api/v3/simple/token_price/solana?contract_addresses=${token}&vs_currencies=usd`
+        );
+        const data = await res.json();
+        const price = data[token.toLowerCase()]?.usd;
 
         if (price) {
-          priceResult.textContent = `💵 Token Price: $${price}`;
-          logMessage(`Fetched price for ${tokenAddr}: $${price}`);
+          priceDisplay.innerText = `💵 $${price}`;
+          log(`Price: $${price}`);
         } else {
-          priceResult.textContent = "❌ Token not found.";
-          logMessage(`Failed to fetch price for ${tokenAddr}.`);
+          priceDisplay.innerText = "❌ Token not found.";
+          log("Token not found.");
         }
-      } catch (err) {
-        priceResult.textContent = "❌ Error fetching price.";
-        logMessage(`Error: ${err.message}`);
+      } catch (e) {
+        priceDisplay.innerText = "Error fetching price.";
+        log("Failed to fetch token price ❌");
       }
     }
 
-    connectButton.addEventListener("click", connectWallet);
-    getPriceBtn.addEventListener("click", getTokenPrice);
+    document.getElementById("connectBtn").addEventListener("click", connectWallet);
+    document.getElementById("getPriceBtn").addEventListener("click", getTokenPrice);
+
+    window.addEventListener("load", () => {
+      log("Page loaded. Setting up...");
+      detectWallet();
+    });
   </script>
 </body>
 </html>
