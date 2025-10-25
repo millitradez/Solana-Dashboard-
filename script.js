@@ -1,59 +1,45 @@
-document.addEventListener('DOMContentLoaded', async () => {
-    const loadButton = document.getElementById('loadToken');
-    const tokenInput = document.getElementById('tokenAddress');
-    const tokenDataDiv = document.getElementById('tokenData');
-    const buyBtn = document.getElementById('buyButton');
-    const sellBtn = document.getElementById('sellButton');
+import { Connection, PublicKey, Transaction } from "@solana/web3.js";
 
-    // Enable the Load button when something is typed
-    tokenInput.addEventListener('input', () => {
-        loadButton.disabled = tokenInput.value.trim() === '';
-    });
+const connection = new Connection("https://api.mainnet-beta.solana.com");
 
-    loadButton.addEventListener('click', async () => {
-        const tokenAddress = tokenInput.value.trim();
-        if (!tokenAddress) {
-            alert('Please enter a valid Solana token address.');
-            return;
-        }
+// Connect wallet
+async function connectCoin98() {
+  if (!window.coin98 || !window.coin98.sol) {
+    alert("Please install or open Coin98 Wallet");
+    return null;
+  }
+  const res = await window.coin98.sol.request({ method: "connect" });
+  return res?.publicKey;
+}
 
-        tokenDataDiv.innerHTML = '<p>Loading token data...</p>';
+// Execute a buy (swap)
+async function executeBuy(sellMint, buyMint, amount) {
+  const pubkey = await connectCoin98();
+  if (!pubkey) return;
 
-        try {
-            const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`);
-            const data = await response.json();
+  // Step 1: Fetch route from Jupiter API
+  const routeResponse = await fetch(`https://quote-api.jup.ag/v6/quote?inputMint=${sellMint}&outputMint=${buyMint}&amount=${amount}&slippageBps=100`);
+  const route = await routeResponse.json();
 
-            if (!data.pairs || data.pairs.length === 0) {
-                tokenDataDiv.innerHTML = '<p>No token data found for this address.</p>';
-                return;
-            }
+  // Step 2: Create swap transaction
+  const swapResponse = await fetch("https://quote-api.jup.ag/v6/swap", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      route: route.data[0],
+      userPublicKey: pubkey,
+      wrapAndUnwrapSol: true,
+    }),
+  });
 
-            const pair = data.pairs[0];
-            const price = parseFloat(pair.priceUsd).toFixed(8);
-            const change24h = pair.priceChange?.h24 ?? 0;
-            const baseToken = pair.baseToken?.symbol ?? 'Unknown';
-            const quoteToken = pair.quoteToken?.symbol ?? 'Unknown';
-            const volume24h = pair.volume?.h24 ? `$${Number(pair.volume.h24).toLocaleString()}` : 'N/A';
+  const { swapTransaction } = await swapResponse.json();
+  const transactionBuf = Buffer.from(swapTransaction, "base64");
 
-            // Update info area
-            tokenDataDiv.innerHTML = `
-                <h2>${baseToken}</h2>
-                <p>💰 Price: <strong>$${price}</strong></p>
-                <p>📈 24h Change: <span style="color:${change24h >= 0 ? 'green' : 'red'}">${change24h}%</span></p>
-                <p>🔄 Volume (24h): ${volume24h}</p>
-            `;
+  // Step 3: Ask Coin98 to sign
+  const signed = await window.coin98.sol.request({
+    method: "signAndSendTransaction",
+    params: [transactionBuf.toString("base64")],
+  });
 
-            // Activate Buy/Sell links dynamically
-            buyBtn.onclick = () => {
-                window.open(`https://jup.ag/swap/USDC-${tokenAddress}`, '_blank');
-            };
-            sellBtn.onclick = () => {
-                window.open(`https://jup.ag/swap/${tokenAddress}-USDC`, '_blank');
-            };
-
-        } catch (error) {
-            console.error('Error loading token data:', error);
-            tokenDataDiv.innerHTML = '<p>Error fetching token data. Try again later.</p>';
-        }
-    });
-});
+  alert(`✅ Transaction sent! Tx: ${signed}`);
+}
