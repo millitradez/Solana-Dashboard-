@@ -1,296 +1,452 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Solana Trading — Mainnet (manual approve)</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Solana Dex — Live (Mainnet) — Coin98 only</title>
+<meta name="description" content="Dex-style Solana dashboard with Dexscreener chart embedded, Coin98-only wallet connect, Jupiter quotes & manual swap signing on Mainnet." />
 <style>
-  body{font-family:Inter,Arial,sans-serif;background:#041826;color:#e8f7ff;margin:0;padding:18px}
-  .wrap{max-width:980px;margin:0 auto}
-  .panel{background:rgba(255,255,255,0.03);padding:14px;border-radius:10px;margin-bottom:12px}
-  input,select,button{padding:8px;border-radius:8px;border:none;background:rgba(255,255,255,0.02);color:inherit}
-  button{background:#00c853;color:#002;font-weight:700;cursor:pointer}
-  button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06)}
-  .muted{color:#9fc3e6;font-size:13px}
-  .log{font-family:monospace;background:#001b33;padding:10px;border-radius:8px;color:#9ff3d0;max-height:220px;overflow:auto}
+  :root{--bg:#071E2B;--panel:rgba(255,255,255,0.035);--accent:#00C853;--muted:#8fbfdc}
+  html,body{height:100%;margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(180deg,#02283a,#002b55);color:#eaf6ff}
+  .wrap{max-width:1100px;margin:20px auto;padding:14px;display:grid;grid-template-columns:1fr;gap:14px}
+  h1{margin:0 0 6px 0;font-size:20px}
+  .muted{color:var(--muted);font-size:13px}
+  .panel{background:var(--panel);padding:12px;border-radius:10px}
   .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  footer{font-size:13px;color:#a9cfe7;margin-top:12px}
+  input,select,button{padding:10px;border-radius:8px;border:none;background:rgba(255,255,255,0.02);color:inherit}
+  button{background:var(--accent);color:#002;font-weight:700;cursor:pointer}
+  button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#cfe}
+  .chart{height:420px;border-radius:8px;overflow:hidden;margin-top:10px}
+  iframe{width:100%;height:100%;border:0}
+  .small{font-size:13px}
+  .log{font-family:monospace;background:#001b33;padding:10px;border-radius:8px;color:#9ff3d0;max-height:220px;overflow:auto}
+  footer{font-size:13px;color:#a9cfe7}
+  @media(max-width:900px){.chart{height:340px}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h2>Solana Manual Trade (Mainnet)</h2>
-  <div class="muted">Paste a token mint, get an on-chain Jupiter quote, then approve the swap in your wallet. <strong>YOU must confirm signing.</strong></div>
+  <div class="wrap">
+    <header>
+      <h1>Solana DexScreener Dashboard — Live Mainnet</h1>
+      <div class="muted">Embedded Dexscreener chart (default: SOL). Coin98-only wallet integration for manual swap signing.</div>
+    </header>
 
-  <div class="panel">
-    <div class="row">
-      <button id="connectBtn">Connect Wallet</button>
-      <div id="walletShort" class="muted">Not connected</div>
-      <div style="margin-left:auto" class="muted">Network: <strong>mainnet-beta</strong></div>
+    <!-- Wallet & quick controls -->
+    <div class="panel row" style="justify-content:space-between;align-items:center">
+      <div class="row">
+        <button id="connectBtn">Connect Coin98</button>
+        <div id="walletShort" class="muted small" style="margin-left:8px">Not connected</div>
+      </div>
+
+      <div class="row">
+        <div class="muted small">Network: <strong>mainnet-beta</strong></div>
+      </div>
     </div>
+
+    <!-- Chart + trade panel -->
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="mintInput" placeholder="Paste token mint (or leave blank to use SOL)" style="min-width:360px" />
+          <select id="quick">
+            <option value="">Quick pick</option>
+            <option value="So11111111111111111111111111111111111111112">wSOL (SOL)</option>
+            <option value="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v">USDC</option>
+            <option value="DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjr9mXAdrsXgPa">BONK</option>
+          </select>
+          <button id="submitBtn" class="ghost">Submit</button>
+        </div>
+        <div class="row">
+          <button id="reloadBtn" class="ghost">Reload token registry</button>
+          <button id="openDexBtn" class="ghost">Open DexScreener</button>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div id="tokenHeader" style="font-weight:700">Selected: SOL (default)</div>
+            <div id="tokenSub" class="muted small">Price: — • 24h: —</div>
+          </div>
+          <div id="chartActions" style="display:flex;gap:8px;align-items:center">
+            <button id="addWatch" class="ghost">Add to Watchlist</button>
+          </div>
+        </div>
+
+        <div class="chart" id="chartWrap" style="margin-top:10px">
+          <!-- Embedded DexScreener default (SOL market page) -->
+          <iframe id="dexFrame" src="https://dexscreener.com/solana" title="DexScreener"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buy / Sell panel below chart -->
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><strong>Trade — Manual (Mainnet)</strong></div>
+        <div class="muted small">You must approve each transaction in Coin98</div>
+      </div>
+
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div style="min-width:140px">
+          <div class="small muted">Amount</div>
+          <input id="amount" placeholder="Amount (SOL or token)"/>
+        </div>
+
+        <div style="min-width:160px">
+          <div class="small muted">Side</div>
+          <select id="side">
+            <option value="sol-to-token">Buy (SOL → token)</option>
+            <option value="token-to-sol">Sell (token → SOL)</option>
+          </select>
+        </div>
+
+        <div style="min-width:120px">
+          <div class="small muted">Slippage %</div>
+          <input id="slippage" value="1" />
+        </div>
+
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button id="quoteBtn" class="ghost">Get Quote</button>
+          <button id="executeBtn">Execute (Sign & Send)</button>
+          <a id="openJupiter" class="ghost" style="text-decoration:none;padding:8px;border-radius:8px" target="_blank" rel="noopener">Open Jupiter</a>
+        </div>
+      </div>
+
+      <div id="quoteBox" style="margin-top:12px" class="muted small">Quote details will appear here after you click Get Quote.</div>
+    </div>
+
+    <!-- Watchlist & logs -->
+    <div class="panel" style="display:flex;gap:12px">
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>Watchlist</strong></div>
+          <div>
+            <button id="exportWL" class="ghost">Export</button>
+            <button id="clearWL" class="ghost">Clear</button>
+          </div>
+        </div>
+        <div id="watchlist" style="margin-top:8px" class="small muted">Empty</div>
+      </div>
+
+      <div style="width:380px">
+        <div><strong>Logs</strong></div>
+        <div id="log" class="log" style="margin-top:8px">Logs will appear here. Read transaction popup carefully before approving.</div>
+      </div>
+    </div>
+
+    <footer class="panel">
+      <div style="font-weight:700;color:#ffb3b3">Warning & safety (Read carefully)</div>
+      <ul class="muted small" style="margin:8px 0 0 18px">
+        <li>This page constructs MAINNET transactions. Only approve if you understand the transaction and amounts.</li>
+        <li>Always verify token mint addresses and use minimal amounts for first trades.</li>
+        <li>Coin98 will show the list of programs/accounts the transaction touches — inspect them before signing.</li>
+        <li>If unsure, test on Devnet first. I can provide a devnet variant on request.</li>
+      </ul>
+    </footer>
   </div>
-
-  <div class="panel">
-    <div><strong>Token / Inspect</strong></div>
-    <div style="margin-top:8px" class="row">
-      <input id="mintInput" placeholder="Paste token mint (SPL) e.g. EPjFW..." style="flex:1"/>
-      <select id="quick">
-        <option value="">Quick</option>
-        <option value="So11111111111111111111111111111111111111112">wSOL (SOL)</option>
-        <option value="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v">USDC</option>
-        <option value="DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjr9mXAdrsXgPa">BONK</option>
-      </select>
-      <button id="inspectBtn" class="ghost">Submit</button>
-    </div>
-    <div id="inspectResult" class="muted" style="margin-top:10px">No token selected</div>
-  </div>
-
-  <div class="panel">
-    <div><strong>Quote & Trade</strong></div>
-    <div style="margin-top:8px" class="row">
-      <input id="amountInput" placeholder="Amount (SOL or token, e.g. 0.1)" style="width:160px"/>
-      <select id="side">
-        <option value="sol-to-token">Buy (SOL → token)</option>
-        <option value="token-to-sol">Sell (token → SOL)</option>
-      </select>
-      <input id="slippageInput" placeholder="Slippage %" style="width:100px" value="1"/>
-      <button id="quoteBtn" class="ghost">Get Quote</button>
-    </div>
-
-    <div id="quoteBox" style="margin-top:10px" class="muted">
-      Quote will appear here.
-    </div>
-
-    <div style="margin-top:10px" class="row">
-      <button id="executeBtn">Execute (Open sign prompt)</button>
-      <button id="openJupiterBtn" class="ghost">Open on Jupiter (preview)</button>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div><strong>Logs</strong></div>
-    <div id="log" class="log" style="margin-top:8px">Ready.</div>
-  </div>
-
-  <footer>
-    <strong>WARNING:</strong> This page will create and broadcast MAINNET transactions once you approve the wallet signature. Double-check amounts, slippage, and mint addresses. Start very small. I am not responsible for losses.
-  </footer>
-</div>
 
 <script type="module">
-/* Mainnet-ready swap UI (manual approval).
+/*******************************************************
+ * Solana DexScreener Dashboard (Mainnet) — Coin98 only
+ *
+ * Features:
+ *  - Embedded DexScreener iframe (auto-load SOL)
+ *  - Token mint input -> loads dexscreener chart & fetches price via Dexscreener API
+ *  - Coin98-only wallet connect & signTransaction
+ *  - Jupiter quote -> Jupiter swap build -> ask wallet to sign -> send to mainnet
+ *
+ * Security: This builds real mainnet transactions. The wallet (Coin98) requests signing and you must approve.
+ *******************************************************/
 
-  How it works:
-  - detect Phantom / Coin98 wallet provider
-  - inspect token mint via CoinGecko (if available)
-  - request Jupiter quote for SOL↔token (mainnet quote API)
-  - request Jupiter swap payload (POST swap endpoint) to receive base64 swapTransaction
-  - decode into Transaction, ask wallet to sign (provider.signTransaction)
-  - send to mainnet RPC via web3.js connection.sendRawTransaction
-  - confirm and show txid
+import { Connection, PublicKey, Transaction } from "https://esm.sh/@solana/web3.js@1.95.1";
 
-  IMPORTANT: You must review the wallet popup thoroughly and only approve if you accept the costs.
-*/
-
-import { Connection, Transaction, PublicKey } from "https://esm.sh/@solana/web3.js@1.95.1";
-
-// Configuration (MAINNET)
+///// Config /////
 const RPC = "https://api.mainnet-beta.solana.com";
 const connection = new Connection(RPC, "confirmed");
 const JUPITER_QUOTE = "https://quote-api.jup.ag/v4/quote";
-const JUPITER_SWAP = "https://api.jup.ag/swap/v1/swap"; // public endpoint for swap payloads
-const SOL_MINT = "So11111111111111111111111111111111111111112";
+const JUPITER_SWAP = "https://api.jup.ag/swap/v1/swap";
+const DEXSCREENER_API = "https://api.dexscreener.com/latest/dex/tokens/"; // + <mint>
+const SOL_MINT = "So11111111111111111111111111111111111111112"; // wSOL (used by Jupiter)
+const DEFAULT_MINT = SOL_MINT;
 
-const connectBtn = document.getElementById("connectBtn");
-const walletShort = document.getElementById("walletShort");
-const mintInput = document.getElementById("mintInput");
-const inspectBtn = document.getElementById("inspectBtn");
-const quick = document.getElementById("quick");
-const inspectResult = document.getElementById("inspectResult");
-const amountInput = document.getElementById("amountInput");
-const sideSelect = document.getElementById("side");
-const slippageInput = document.getElementById("slippageInput");
-const quoteBtn = document.getElementById("quoteBtn");
-const quoteBox = document.getElementById("quoteBox");
-const executeBtn = document.getElementById("executeBtn");
-const openJupiterBtn = document.getElementById("openJupiterBtn");
-const logEl = document.getElementById("log");
+///// DOM /////
+const dexFrame = document.getElementById('dexFrame');
+const mintInput = document.getElementById('mintInput');
+const quick = document.getElementById('quick');
+const submitBtn = document.getElementById('submitBtn');
+const reloadBtn = document.getElementById('reloadBtn');
+const openDexBtn = document.getElementById('openDexBtn');
+const tokenHeader = document.getElementById('tokenHeader');
+const tokenSub = document.getElementById('tokenSub');
+const connectBtn = document.getElementById('connectBtn');
+const walletShort = document.getElementById('walletShort');
+const addWatch = document.getElementById('addWatch');
+const watchlistEl = document.getElementById('watchlist');
+const exportWL = document.getElementById('exportWL');
+const clearWL = document.getElementById('clearWL');
+const logEl = document.getElementById('log');
 
+const amountInput = document.getElementById('amount');
+const sideSelect = document.getElementById('side');
+const slippageInput = document.getElementById('slippage');
+const quoteBtn = document.getElementById('quoteBtn');
+const executeBtn = document.getElementById('executeBtn');
+const quoteBox = document.getElementById('quoteBox');
+const openJupiter = document.getElementById('openJupiter');
+
+///// State /////
+let provider = null;               // Coin98 provider object
+let connectedPubkey = null;        // connected wallet address (string)
+let selectedMint = DEFAULT_MINT;   // current token mint
+let lastQuote = null;              // best route object from Jupiter
+let watchlist = JSON.parse(localStorage.getItem('watchlist_v1') || '[]');
+
+///// Utilities /////
 function log(msg){
   logEl.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}<br>` + logEl.innerHTML;
   console.debug(msg);
 }
+function short(s){ return (s||'').slice(0,6) + '...' + (s||'').slice(-4); }
+function looksLikeKey(v){ try { new PublicKey(v); return true } catch(e){ return false } }
 
-// Wallet provider vars
-let provider = null;
-let connectedPubkey = null;
-let lastQuote = null; // store the selected route (best) for swap build
-
-async function detectProvider(){
-  if (window.coin98 && window.coin98.sol) { provider = window.coin98.sol; log("Detected Coin98 provider"); }
-  else if (window.solana && window.solana.isPhantom) { provider = window.solana; log("Detected Phantom provider"); }
-  else { provider = null; log("No wallet provider detected (open in Phantom/Coin98)"); }
-  connectBtn.textContent = provider ? "Connect Wallet" : "Open in Phantom/Coin98";
+///// Provider detection (Coin98 only) /////
+function detectProvider(){
+  if (window.coin98 && window.coin98.sol) {
+    provider = window.coin98.sol;
+    log('Detected Coin98 provider');
+  } else {
+    provider = null;
+    log('Coin98 provider not detected — open this page inside Coin98 browser.');
+  }
+  connectBtn.textContent = provider ? 'Connect Coin98' : 'Open in Coin98';
 }
 
-// Connect wallet
 async function connectWallet(){
-  if (!provider) { alert("Open this page in Phantom or Coin98 with mainnet wallet"); return; }
+  if (!provider) { alert('Open this page in Coin98 in-app browser to connect'); return; }
   try {
-    const res = provider.connect ? await provider.connect() : await provider.request({ method: "connect" });
-    const pub = res?.publicKey?.toString?.() || (res?.toString?.()||res);
+    // Coin98 often supports request({method:'connect'}) or connect()
+    const resp = provider.connect ? await provider.connect() : await provider.request({ method: 'connect' });
+    const pub = (resp?.publicKey?.toString && resp.publicKey.toString()) || (resp?.toString?.()||resp);
     connectedPubkey = pub;
-    walletShort.textContent = `Connected: ${pub.slice(0,6)}...${pub.slice(-4)}`;
-    log("Wallet connected: " + pub);
+    walletShort.textContent = `Connected: ${short(pub)}`;
+    log('Connected wallet: ' + pub);
   } catch(e){
-    log("Wallet connect failed: " + (e.message || e));
-    walletShort.textContent = "Connection rejected";
+    log('Connect failed: ' + (e.message || e));
+    walletShort.textContent = 'Connection rejected';
   }
 }
 
-// Inspect token mint (CoinGecko lookup + set iframe preview)
-inspectBtn.addEventListener("click", async ()=>{
-  const mint = (mintInput.value || "").trim();
-  if (!mint) { inspectResult.textContent = "Enter a token mint."; return; }
+///// Chart & Price (Dexscreener) /////
+async function loadDexscreenerFor(mint){
+  // set iframe to dexscreener search (best-effort)
+  // Dexscreener uses token pairs and search; using search endpoint works for interactive chart.
+  const query = mint || DEFAULT_MINT;
+  dexFrame.src = 'https://dexscreener.com/search?q=' + encodeURIComponent(query);
+  tokenHeader.textContent = 'Selected: ' + (mint ? short(mint) : 'SOL (default)');
+  tokenSub.textContent = 'Loading price from Dexscreener...';
   try {
-    // verify pubkey format
-    new PublicKey(mint);
+    const r = await fetch(DEXSCREENER_API + mint);
+    if (!r.ok) throw new Error('Dexscreener API ' + r.status);
+    const j = await r.json();
+    // Dexscreener returns .pairs[]; pick first pair that includes SOL or USD
+    const p = (j.pairs && j.pairs[0]) || null;
+    if (p) {
+      const priceUsd = p.priceUsd || p.price;
+      const change = p.priceChange?.toFixed?.(2) ?? '';
+      tokenSub.textContent = priceUsd ? `Price: $${Number(priceUsd).toFixed(6)} • 24h: ${change}%` : 'Price: N/A';
+      log('Dexscreener data loaded for ' + mint);
+    } else {
+      tokenSub.textContent = 'Price/pair not found on Dexscreener';
+      log('Dexscreener: no pairs for ' + mint);
+    }
   } catch(e){
-    inspectResult.textContent = "Invalid mint address.";
-    return;
+    tokenSub.textContent = 'Dexscreener price error';
+    log('Dexscreener fetch error: ' + e.message);
   }
-  inspectResult.textContent = "Checking CoinGecko for price...";
-  try {
-    const cg = await fetch(`https://api.coingecko.com/api/v3/simple/token_price/solana?contract_addresses=${mint}&vs_currencies=usd`).then(r=>r.json());
-    const price = cg[mint.toLowerCase()]?.usd ?? null;
-    inspectResult.innerHTML = price ? `Price (CoinGecko): $${Number(price).toFixed(6)}` : "Price not found on CoinGecko";
-    // set iframe to DexScreener search (optional)
-    // document.getElementById('dexIframe')?.setAttribute('src', 'https://dexscreener.com/search?q=' + encodeURIComponent(mint));
-  } catch(e){
-    inspectResult.textContent = "Inspect failed: " + e.message;
+}
+
+///// Watchlist /////
+function renderWatchlist(){
+  if (!watchlist || !watchlist.length) { watchlistEl.innerHTML = '<div class="muted small">Empty</div>'; return; }
+  watchlistEl.innerHTML = watchlist.map(m=>`<div style="display:flex;justify-content:space-between;align-items:center"><div>${m}</div><div><button class="ghost" onclick="(function(){ window.selectWatch('${m}') })()">View</button></div></div>`).join('');
+  window.selectWatch = (m)=>{ mintInput.value = m; submitBtn.click(); }
+}
+exportWL.onclick = ()=> {
+  const blob = new Blob([watchlist.join('\n')], {type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='watchlist.txt'; a.click();
+}
+clearWL.onclick = ()=> { if (!confirm('Clear watchlist?')) return; watchlist = []; localStorage.setItem('watchlist_v1','[]'); renderWatchlist(); log('Watchlist cleared'); }
+
+///// Jupiter quote & swap helpers (Mainnet) /////
+async function getJupiterQuote(inputMint, outputMint, amountSmall, slippagePercent = 1){
+  const url = `${JUPITER_QUOTE}?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountSmall}&slippage=${slippagePercent}`;
+  log('Requesting Jupiter quote...');
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('Jupiter quote failed: ' + r.status);
+  return await r.json();
+}
+
+// Build swap via Jupiter swap endpoint (POST). We send { route, userPublicKey } or {route, userPublicKey, wrapUnwrapSOL}, depending on Jupiter.
+// The public Jupiter swap endpoint will return swapTransaction (base64) suitable for decoding.
+// IMPORTANT: Jupiter docs evolve; this call works as long as endpoint supports the route object.
+async function buildJupiterSwap(routeObj, userPublicKey){
+  log('Requesting Jupiter swap build...');
+  const body = { route: routeObj, userPublicKey };
+  const res = await fetch(JUPITER_SWAP, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error('Jupiter swap build failed: ' + res.status + ' - ' + txt);
+  }
+  return await res.json(); // expects { swapTransaction: <base64>, ... }
+}
+
+///// Convert UI amount to smallest units (best-effort) /////
+function amountToSmall(inputIsSol, amountUi, decimals=6){
+  if (inputIsSol) return Math.floor(amountUi * 1e9);
+  return Math.floor(amountUi * Math.pow(10, decimals)); // many tokens on solana use 6, but exact decimals should be fetched from registry for accuracy
+}
+
+///// UI: selection + submit /////
+async function selectMint(mint){
+  if (!mint) mint = DEFAULT_MINT;
+  selectedMint = mint;
+  mintInput.value = mint;
+  await loadDexscreenerFor(mint);
+  // add to watchlist UI but do not auto-add to stored list
+}
+
+submitBtn.addEventListener('click', async ()=>{
+  const v = (mintInput.value || '').trim();
+  if (!v) { selectMint(DEFAULT_MINT); return; }
+  if (!looksLikeKey(v)) { alert('Invalid Solana public key / mint'); return; }
+  await selectMint(v);
+  if (!watchlist.includes(v)) {
+    watchlist.unshift(v);
+    localStorage.setItem('watchlist_v1', JSON.stringify(watchlist));
+    renderWatchlist();
   }
 });
 
-// Quick pick
-quick.addEventListener("change", ()=>{ if (quick.value) mintInput.value = quick.value; });
+quick.addEventListener('change', ()=>{ if (quick.value) { mintInput.value = quick.value; submitBtn.click(); }});
+openDexBtn.addEventListener('click', ()=> { window.open('https://dexscreener.com/solana','_blank') });
+addWatch.addEventListener('click', ()=>{
+  const m = (mintInput.value||'').trim();
+  if (!m || !looksLikeKey(m)) return alert('Select a valid mint first');
+  if (!watchlist.includes(m)){ watchlist.unshift(m); localStorage.setItem('watchlist_v1', JSON.stringify(watchlist)); renderWatchlist(); log('Added to watchlist: ' + m); }
+});
 
-// Get Jupiter quote (mainnet)
-quoteBtn.addEventListener("click", async ()=>{
-  const mint = (mintInput.value || "").trim();
-  if (!mint) { quoteBox.textContent = "Enter a token mint."; return; }
-  try { new PublicKey(mint); } catch(e){ quoteBox.textContent = "Invalid mint address."; return; }
-
-  const side = sideSelect.value;
-  const amountUi = parseFloat(amountInput.value);
-  if (!amountUi || amountUi <= 0) { quoteBox.textContent = "Enter valid amount."; return; }
-
-  // Prepare input/output mints and amount in smallest units
-  let inputMint, outputMint, amountSmall;
-  if (side === "sol-to-token"){ inputMint = SOL_MINT; outputMint = mint; amountSmall = Math.floor(amountUi * 1e9); }
-  else { inputMint = mint; outputMint = SOL_MINT; // token->SOL; approximate decimals: many tokens have 6 decimals; this is a practical assumption but may be inaccurate — Jupiter expects exact smallest units
-    amountSmall = Math.floor(amountUi * 1e6);
-  }
-
-  const slippage = parseFloat(slippageInput.value) || 1;
-
-  const url = `${JUPITER_QUOTE}?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountSmall}&slippage=${slippage}`;
-  quoteBox.textContent = "Requesting quote from Jupiter...";
-  log("Requesting Jupiter quote...");
-
+///// Quote flow (user clicks Get Quote) /////
+quoteBtn.addEventListener('click', async ()=>{
   try {
-    const r = await fetch(url);
-    if (!r.ok) throw new Error("Jupiter quote failed: " + r.status);
-    const j = await r.json();
-    if (!j.data || j.data.length === 0) { quoteBox.textContent = "No route found"; lastQuote = null; return; }
-    // choose best (first) route from Jupiter
-    const best = j.data[0];
+    quoteBox.innerHTML = 'Requesting quote...';
+    const mint = selectedMint || DEFAULT_MINT;
+    if (!mint) return alert('Select a token first');
+    const side = sideSelect.value;
+    const amtUi = parseFloat(amountInput.value);
+    if (!amtUi || amtUi <= 0) return alert('Enter a valid amount');
+    const slippage = parseFloat(slippageInput.value) || 1;
+
+    // Decide input/output mints
+    const isBuy = side === 'sol-to-token';
+    const inputMint = isBuy ? SOL_MINT : mint;
+    const outputMint = isBuy ? mint : SOL_MINT;
+
+    // convert: if input is SOL, convert to lamports; else use default decimals 6 (best-effort)
+    const amountSmall = amountToSmall(inputMint === SOL_MINT, amtUi, 6);
+
+    const quote = await getJupiterQuote(inputMint, outputMint, amountSmall, slippage);
+    if (!quote || !quote.data || quote.data.length === 0) {
+      quoteBox.textContent = 'No route found via Jupiter';
+      lastQuote = null;
+      return;
+    }
+
+    const best = quote.data[0];
     lastQuote = best;
-    // compute approximate out in UI units using guess decimals (best effort)
-    const outDecimals = 9; // default fallback; ideally read token registry for exact decimals
+    // estimate out amount: best.outAmount is smallest units; use guess decimals (try 9 for SOL and registry unknown for token)
+    const outDecimals = (outputMint === SOL_MINT) ? 9 : 6;
     const outUi = best.outAmount / Math.pow(10, outDecimals);
-    quoteBox.innerHTML = `Estimated out: ${outUi.toFixed(6)}<br>Route: ${best.marketInfos?.map(m=>m.label).join(' → ')}<br><small>Check slippage & route carefully.</small>`;
-    // set Jupiter preview link
-    const jupUrl = `https://jup.ag/swap?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountSmall}&slippage=${slippage}`;
-    openJupiterBtn.onclick = ()=> window.open(jupUrl, "_blank");
-    openJupiterBtn.style.display = "inline-block";
-    log("Quote received and stored locally. Ready to build swap.");
+    quoteBox.innerHTML = `<div>Estimated out: ${outUi.toFixed(6)}</div><div class="muted small">Route: ${best.marketInfos?.map(m=>m.label).join(' → ')}</div>`;
+    // build jupiter open link
+    const jupLink = `https://jup.ag/swap?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountSmall}&slippage=${slippage}`;
+    openJupiter.href = jupLink; openJupiter.style.display = 'inline-block';
+    log('Quote fetched (best route stored).');
   } catch(e){
-    quoteBox.textContent = "Quote error: " + e.message;
-    log("Quote error: " + e.message);
+    quoteBox.textContent = 'Quote error: ' + (e.message || e);
+    log('Quote error: ' + (e.message || e));
     lastQuote = null;
   }
 });
 
-// Execute: build swap via Jupiter swap endpoint, sign in wallet, send to mainnet
-executeBtn.addEventListener("click", async ()=>{
-  if (!lastQuote) { alert("Get a quote first."); return; }
-  if (!provider) { alert("Open this page in Phantom/Coin98 and connect wallet."); return; }
-  if (!connectedPubkey){
+///// Execute (build swap, ask Coin98 to sign, send to mainnet) /////
+executeBtn.addEventListener('click', async ()=>{
+  if (!lastQuote) { alert('Get a quote first'); return; }
+  if (!provider) { alert('Open this page in the Coin98 browser and connect your wallet'); return; }
+  if (!connectedPubkey) {
     await connectWallet();
-    if (!connectedPubkey) { alert("Connect wallet first."); return; }
+    if (!connectedPubkey) return alert('Connect wallet first');
   }
 
-  // show confirmation dialog with key details
-  const side = sideSelect.value;
-  const amt = amountInput.value;
-  if (!confirm(`You are about to ${side === "sol-to-token" ? "buy" : "sell"} ${amt} (input). This will construct a MAINNET transaction and ask your wallet to sign. Proceed?`)) return;
+  // show a last-chance confirmation
+  if (!confirm('You are about to submit a MAINNET swap transaction. Confirm you understand and approve this operation.')) return;
 
   try {
-    log("Requesting Jupiter swap build (server-side swap builder)...");
-    // Jupiter swap endpoint expects JSON { route, userPublicKey } OR other fields; we'll pass route object and userPublicKey
-    const body = { route: lastQuote, userPublicKey: connectedPubkey };
-    const res = await fetch(JUPITER_SWAP, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    });
-    if (!res.ok){
-      const text = await res.text();
-      throw new Error("Jupiter swap build failed: " + res.status + " " + text);
-    }
-    const json = await res.json();
-    if (!json || !json.swapTransaction) throw new Error("Jupiter did not return swapTransaction");
-    const b64 = json.swapTransaction; // base64 string
-    // decode to Transaction
+    // Build swap payload via Jupiter
+    const route = lastQuote;
+    const buildResp = await buildJupiterSwap(route, connectedPubkey);
+    if (!buildResp || !buildResp.swapTransaction) throw new Error('Jupiter did not return swapTransaction');
+    const b64 = buildResp.swapTransaction;
+    // decode base64 -> Transaction
     const raw = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
     const tx = Transaction.from(raw);
 
-    log("Requesting wallet to sign transaction (inspect details in wallet popup)...");
-    // Some wallets expose different methods:
+    log('Requesting Coin98 to sign transaction (inspect carefully) ...');
+
+    // Coin98 should support signTransaction; attempt provider.signTransaction
     let signedTx;
     if (provider.signTransaction) {
       signedTx = await provider.signTransaction(tx);
-    } else if (provider.sign && provider.signTransaction) {
-      signedTx = await provider.signTransaction(tx);
+    } else if (provider.request) {
+      // fallback: some providers use request method; not standardized. Try request('signTransaction')
+      try {
+        signedTx = await provider.request({ method: 'signTransaction', params: { transaction: b64 }});
+      } catch(err) {
+        throw new Error('Wallet does not support programmatic signTransaction in this environment');
+      }
     } else {
-      throw new Error("Wallet does not support signTransaction in this environment");
+      throw new Error('No supported signTransaction method on provider');
     }
 
-    // send serialized signed tx
-    const signedSerialized = signedTx.serialize();
-    log("Sending signed transaction to mainnet...");
-    const txid = await connection.sendRawTransaction(signedSerialized, { skipPreflight: false });
-    log("Submitted txid: " + txid);
-    quoteBox.innerHTML += `<div style="margin-top:8px">Submitted tx: <a href="https://explorer.solana.com/tx/${txid}?cluster=mainnet-beta" target="_blank">${txid}</a></div>`;
-    // confirm
-    await connection.confirmTransaction(txid, "confirmed");
-    log("Transaction confirmed: " + txid);
-    alert("Transaction confirmed: " + txid);
+    // signedTx should be a Transaction object (or have serialize method)
+    const serialized = signedTx.serialize ? signedTx.serialize() : (signedTx?.raw || signedTx);
+    // send
+    const txid = await connection.sendRawTransaction(serialized, { skipPreflight: false });
+    log('Transaction submitted: ' + txid);
+    quoteBox.innerHTML += `<div style="margin-top:6px"><a target="_blank" rel="noopener" href="https://explorer.solana.com/tx/${txid}?cluster=mainnet-beta">View on Explorer</a></div>`;
+    await connection.confirmTransaction(txid, 'confirmed');
+    log('Transaction confirmed: ' + txid);
+    alert('Swap confirmed: ' + txid);
   } catch(e){
-    log("Swap execution failed: " + (e.message || e));
-    alert("Swap failed: " + (e.message || e));
+    log('Execution error: ' + (e.message || e));
+    alert('Swap failed: ' + (e.message || e));
   }
 });
 
-// Detect provider on load
-window.addEventListener("load", async ()=>{
-  await detectProvider();
-  // if provider available and auto-connect desired, you could auto-connect here (not done by default)
-  connectBtn.addEventListener("click", connectWallet);
-  quick.addEventListener("change", ()=> { if (quick.value) mintInput.value = quick.value });
-  // optionally auto-inspect default
-  //mintInput.value = SOL_MINT; inspectBtn.click();
-});
+///// Provider connect wiring /////
+connectBtn.addEventListener('click', connectWallet);
+async function initProviderOnLoad(){
+  detectProvider();
+  // If Coin98 present and auto-connect desirable, you could auto connect (we don't auto-connect).
+  // Load defaults
+  renderWatchlist();
+  await selectMint(DEFAULT_MINT);
+}
+
+// init on load
+window.addEventListener('load', initProviderOnLoad);
+
+// ensure watchlist helper available in global for inline buttons
+window.selectWatch = (m)=>{ mintInput.value = m; submitBtn.click(); };
 
 </script>
 </body>
