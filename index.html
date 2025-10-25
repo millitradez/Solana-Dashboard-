@@ -21,6 +21,7 @@
     .ok{background:#d4edda;color:#155724;padding:10px;border-radius:8px}
     .err{background:#f8d7da;color:#721c24;padding:10px;border-radius:8px}
     code{background:#f3f4f6;padding:4px 6px;border-radius:6px;font-size:13px}
+    pre.debug{background:#0b1220;color:#d6f8f1;padding:10px;border-radius:8px;overflow:auto;max-height:240px}
   </style>
 </head>
 <body>
@@ -52,6 +53,12 @@
       <div id="tokenResult" style="margin-top:14px"></div>
     </div>
 
+    <div class="card">
+      <h3>🐞 Debug output</h3>
+      <div class="small muted">Provider & network debug logs (use when troubleshooting)</div>
+      <pre id="debugOut" class="debug"></pre>
+    </div>
+
     <footer style="text-align:center;color:rgba(255,255,255,.9);margin-top:8px">
       Built by millitradez — Coin98
     </footer>
@@ -66,6 +73,7 @@
   const lookupBtn = document.getElementById('lookupBtn');
   const tokenInput = document.getElementById('tokenInput');
   const tokenResult = document.getElementById('tokenResult');
+  const debugOut = document.getElementById('debugOut');
 
   function showBanner(text, type='info'){
     bannerMsg.textContent = text;
@@ -75,9 +83,23 @@
     tokenResult.innerHTML = html;
     tokenResult.className = ok ? 'ok' : 'err';
   }
+  function appendDebug(...args){
+    try {
+      const lines = args.map(a => {
+        if(typeof a === 'string') return a;
+        try { return JSON.stringify(a, null, 2); } catch(e){ return String(a); }
+      });
+      debugOut.textContent = debugOut.textContent + lines.join(' ') + '\n\n';
+      debugOut.scrollTop = debugOut.scrollHeight;
+      console.debug(...args);
+    } catch(e){ console.debug('debug append error', e); }
+  }
 
   // ---------- Solana RPC helper ----------
+  // If your RPC provider requires an API key or is rejecting with "invalid token",
+  // try switching to a public RPC (for testing) such as https://rpc.ankr.com/solana
   const RPC = "https://api.mainnet-beta.solana.com";
+  // const RPC = "https://rpc.ankr.com/solana"; // alternative for testing
 
   async function rpc(method, params){
     const payload = { jsonrpc: "2.0", id: 1, method, params };
@@ -86,9 +108,28 @@
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify(payload)
     });
-    if(!res.ok) throw new Error('RPC network error');
-    const body = await res.json();
-    if(body.error) throw new Error(body.error.message || JSON.stringify(body.error));
+
+    // read text to make sure we can display raw response when provider replies with
+    // a non-json or application level error (like "invalid token")
+    const text = await res.text();
+    let body = null;
+    try { body = JSON.parse(text); } catch(e){ body = null; }
+
+    if(!res.ok) {
+      const msg = `Network error ${res.status} ${res.statusText} — response: ${text}`;
+      appendDebug({rpc_error_network: msg});
+      throw new Error(msg);
+    }
+    if(body && body.error) {
+      const msg = `RPC error: ${body.error.code || ''} ${body.error.message || JSON.stringify(body.error)}`;
+      appendDebug({rpc_error_body: body});
+      throw new Error(msg);
+    }
+    if(!body) {
+      // not JSON — surface raw text
+      appendDebug({rpc_unexpected_text: text});
+      throw new Error('RPC returned non-JSON response: ' + text);
+    }
     return body.result;
   }
 
@@ -106,51 +147,90 @@
     return null;
   }
 
+  function extractPubFromResp(resp, walletObj){
+    // try many shapes we might see from different provider versions
+    try {
+      // resp.publicKey could be a PublicKey object or base58 string
+      if(resp) {
+        if(typeof resp === 'string') return resp;
+        if(resp.publicKey) {
+          if(typeof resp.publicKey === 'string') return resp.publicKey;
+          if(typeof resp.publicKey.toString === 'function') return resp.publicKey.toString();
+          if(typeof resp.publicKey.toBase58 === 'function') return resp.publicKey.toBase58();
+        }
+        // some providers put address in result.publicKey or in resp.result
+        if(resp.result && resp.result.publicKey) {
+          if(typeof resp.result.publicKey === 'string') return resp.result.publicKey;
+          if(typeof resp.result.publicKey.toString === 'function') return resp.result.publicKey.toString();
+        }
+      }
+      if(walletObj) {
+        if(walletObj.publicKey) {
+          if(typeof walletObj.publicKey === 'string') return walletObj.publicKey;
+          if(typeof walletObj.publicKey.toString === 'function') return walletObj.publicKey.toString();
+          if(typeof walletObj.publicKey.toBase58 === 'function') return walletObj.publicKey.toBase58();
+        }
+      }
+    } catch(e){
+      appendDebug('extractPubFromResp error', e);
+    }
+    return null;
+  }
+
   async function connectCoin98(){
     try {
       const c98 = await waitForCoin98(6000);
       if(!c98){
         showBanner('Coin98 not detected — open inside Coin98 browser', 'err');
         walletStatus.textContent = 'Not connected';
+        appendDebug('Coin98 not found on window');
         return;
       }
+
+      appendDebug('coin98 global object:', c98);
+
       // try connect API forms
-      // some coin98 versions expose `coin98.sol.connect()` or `coin98.sol.request`
       coin98Wallet = c98.sol || c98.provider || c98;
+      appendDebug('coin98Wallet chosen:', coin98Wallet);
+
       // prefer connect method if available
-      let resp;
+      let resp = null;
       if(typeof coin98Wallet.connect === 'function'){
-        resp = await coin98Wallet.connect();
-      } else if(typeof coin98Wallet.request === 'function'){
-        // request connect
-        try { resp = await coin98Wallet.request({ method: 'connect' }); }
-        catch(e){ resp = null; }
-      } else {
-        // fallback: ask user to use wallet UI
-        throw new Error('No connect method');
+        try {
+          resp = await coin98Wallet.connect();
+        } catch(e){
+          appendDebug('connect() threw', e);
+          // fall back to request below
+          resp = null;
+        }
+      }
+      if(!resp && typeof coin98Wallet.request === 'function'){
+        try {
+          resp = await coin98Wallet.request({ method: 'connect' });
+        } catch(e){ 
+          appendDebug('request({method:connect}) threw', e);
+          resp = null;
+        }
       }
 
-      // try to get public key
-      let pub;
-      if(resp && resp.publicKey) pub = resp.publicKey;
-      else if(resp && typeof resp === 'string') pub = resp;
-      else if(coin98Wallet.publicKey) pub = coin98Wallet.publicKey;
-      if(!pub && coin98Wallet.isConnected && coin98Wallet.publicKey) pub = coin98Wallet.publicKey;
+      appendDebug('connect response:', resp);
 
+      const pub = extractPubFromResp(resp, coin98Wallet);
       if(!pub) {
         walletStatus.textContent = 'Connected (pubkey unknown)';
-        showBanner('Connected (address not reported)', 'ok');
+        showBanner('Connected (address not reported). Check debug logs.', 'ok');
+        appendDebug('No pubkey could be extracted from response or provider object.');
       } else {
-        // pub may be object — try toString
-        try { pub = pub.toString(); } catch(e){}
         connectedPubkey = pub;
         walletStatus.textContent = 'Connected';
         walletAddrEl.textContent = pub;
-        showBanner('✅ Wallet connected', 'ok');
+        showBanner('✅ Wallet connected: ' + pub, 'ok');
+        appendDebug('Connected pubkey:', pub);
       }
     } catch(err) {
       console.error('connect error', err);
-      showBanner('Connection failed — try again inside Coin98', 'err');
+      appendDebug('connect error', err && (err.message || err));
+      showBanner('Connection failed — check debug output', 'err');
       walletStatus.textContent = 'Not connected';
     }
   }
@@ -158,13 +238,6 @@
   connectBtn.addEventListener('click', connectCoin98);
 
   // ---------- Token lookup logic ----------
-  // Steps:
-  // 1) Try treating input as mint -> call getTokenSupply(mint)
-  // 2) If no supply, try treating input as token account -> call getParsedAccountInfo(account)
-  //    extract mint from parsed data
-  // 3) Once we have mint, call getTokenSupply(mint) for supply & decimals
-  // 4) If wallet connected, call getTokenAccountsByOwner(owner, {mint}) to get owner's balance
-
   async function loadTokenInfo(){
     tokenResult.innerHTML = '';
     tokenResult.className = '';
@@ -178,6 +251,8 @@
       try {
         supplyRes = await rpc('getTokenSupply', [raw]);
       } catch(e){
+        // surface RPC error so user sees "invalid token" message if returned by RPC host
+        appendDebug('getTokenSupply error', e && e.message ? e.message : e);
         supplyRes = null;
       }
 
@@ -189,49 +264,50 @@
         mint = raw;
       } else {
         // 2) treat as token account / any account
-        // use getParsedAccountInfo to extract parsed token info
         try {
           const parsed = await rpc('getParsedAccountInfo', [raw, {encoding: 'jsonParsed'}]);
+          appendDebug('getParsedAccountInfo result', parsed);
           if(parsed && parsed.value && parsed.value.data && parsed.value.data.parsed){
             const info = parsed.value.data.parsed.info;
             if(info && info.mint){
               mint = info.mint;
-              tokenAccountInfo = info; // has tokenAmount, owner, amount etc
+              tokenAccountInfo = info;
             }
           }
         } catch(err){
-          // ignore
+          appendDebug('getParsedAccountInfo error', err && err.message ? err.message : err);
         }
       }
 
       if(!mint){
-        showResult('❌ Invalid token or no supply info found.', false);
+        showResult('❌ Could not determine mint for the address. If you see "invalid token" in debug logs, the RPC host may be rejecting your request (API key required or rate-limited). See debug panel below.', false);
         return;
       }
 
-      // Now we have mint. fetch supply if not done already
+      // Now fetch supply if not already fetched
       let supply = supplyRes;
       if(!supply){
         try { supply = await rpc('getTokenSupply', [mint]); }
-        catch(e){ supply = null; }
+        catch(e){ 
+          appendDebug('getTokenSupply (second attempt) error', e && e.message ? e.message : e);
+          supply = null; 
+        }
       }
 
       if(!supply || !supply.value){
-        showResult('❌ Could not fetch supply for mint: ' + mint, false);
+        showResult('❌ Could not fetch supply for mint: ' + mint + '. See debug panel for RPC response.', false);
         return;
       }
 
       const decimals = supply.value.decimals;
       const uiSupply = supply.value.uiAmountString || (supply.value.amount / Math.pow(10, decimals));
 
-      // 3) If wallet connected, get owner's token accounts for this mint
       let ownerBalanceStr = null;
       if(connectedPubkey){
         try {
           const ownerRes = await rpc('getTokenAccountsByOwner', [connectedPubkey, {mint: mint}, {encoding: 'jsonParsed'}]);
-          // ownerRes.value is array of accounts
+          appendDebug('getTokenAccountsByOwner', ownerRes);
           if(ownerRes && Array.isArray(ownerRes.value) && ownerRes.value.length > 0){
-            // sum uiAmount across token accounts
             let sum = 0;
             for(const a of ownerRes.value){
               const info = a.account?.data?.parsed?.info;
@@ -244,18 +320,16 @@
             ownerBalanceStr = "0";
           }
         } catch(err){
-          console.warn('owner balance fetch failed', err);
+          appendDebug('owner balance fetch failed', err && err.message ? err.message : err);
         }
       }
 
-      // 4) If we had tokenAccountInfo (user input was a token account), extract its balance
       let tokenAccountBalanceText = '';
       if(tokenAccountInfo && tokenAccountInfo.tokenAmount){
         const ta = tokenAccountInfo.tokenAmount;
         tokenAccountBalanceText = `Token account balance: ${ta.uiAmount} (raw: ${ta.amount}, decimals: ${ta.decimals})`;
       }
 
-      // 5) Render results
       const out = `
         ✅ <strong>Mint:</strong> <code>${mint}</code><br>
         <strong>Decimals:</strong> ${decimals}<br>
@@ -267,17 +341,18 @@
 
     } catch(err){
       console.error('loadTokenInfo error', err);
-      showResult('❌ Error loading token info. Check address and try again.', false);
+      appendDebug('loadTokenInfo error', err && (err.message || err));
+      showResult('❌ Error loading token info. Check debug output below.', false);
     }
   }
 
   lookupBtn.addEventListener('click', loadTokenInfo);
 
-  // attempt to auto-detect coin98 on load and show note
   (async function init(){
     const c98 = await waitForCoin98(3000);
     if(c98){
       showBanner('Coin98 wallet is available — press Connect', 'ok');
+      appendDebug('Coin98 detected on window:', c98);
     } else {
       showBanner('Open this page inside the Coin98 in-app browser to connect your wallet.', 'info');
     }
