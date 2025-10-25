@@ -1,224 +1,163 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Solana RPC Debugger</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🚀 Solana Dashboard — Coin98 Compatible</title>
   <style>
-    body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:#f7fafc; color:#0f172a; padding:20px; }
-    .container { max-width:980px; margin:0 auto; background:#fff; border-radius:8px; padding:20px; box-shadow:0 6px 20px rgba(2,6,23,0.08); }
-    h1 { font-size:20px; margin:0 0 12px 0; }
-    label { display:block; margin-top:10px; font-weight:600; font-size:13px; }
-    input[type=text], input[type=url], textarea, select { width:100%; padding:10px; border:1px solid #e2e8f0; border-radius:6px; margin-top:6px; box-sizing:border-box; }
-    button { margin-top:12px; padding:10px 14px; border:0; background:#0ea5a4; color:white; border-radius:6px; cursor:pointer; }
-    button.secondary { background:#64748b; }
-    .row { display:flex; gap:12px; margin-top:12px; }
-    .col { flex:1; }
-    pre { background:#081226; color:#cfe7ff; padding:12px; border-radius:6px; overflow:auto; max-height:360px; }
-    .muted { color:#475569; font-size:13px; }
-    .hint { margin-top:8px; font-size:13px; color:#d97706; }
-    .field-inline { display:flex; gap:8px; align-items:center; margin-top:8px; }
-    .small { font-size:13px; color:#334155; }
-    .success { color:#065f46; }
-    .error { color:#b91c1c; }
-    .panel { border:1px dashed #e2e8f0; padding:10px; border-radius:6px; margin-top:12px; background:#fcfeff; }
+    body {
+      background: linear-gradient(180deg, #6a11cb, #2575fc);
+      font-family: 'Arial', sans-serif;
+      color: white;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      margin-top: 20px;
+      font-size: 2.2em;
+    }
+    .card {
+      background: white;
+      color: black;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px auto;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    }
+    button {
+      background: linear-gradient(90deg, #00c6ff, #0072ff);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover { opacity: 0.9; }
+    input {
+      width: 80%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      margin-top: 10px;
+    }
+    .error { color: red; font-weight: bold; }
+    .success { color: green; font-weight: bold; }
+    .debug {
+      background: #0b0c10;
+      color: #00ff9d;
+      text-align: left;
+      font-family: monospace;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 20px;
+      overflow-x: auto;
+    }
   </style>
 </head>
+
 <body>
-  <div class="container">
-    <h1>Solana RPC Debugger</h1>
-    <div class="muted">Quickly test getParsedAccountInfo and getTokenSupply and capture provider errors (403, rate limits, CORS).</div>
+  <h1>🚀 Solana Dashboard</h1>
+  <p>Coin98 Compatible</p>
 
-    <label for="rpcUrl">RPC URL</label>
-    <input id="rpcUrl" type="url" placeholder="https://example-rpc.com/ (replace API key part with &lt;REDACTED&gt;)" value="https://api.mainnet-beta.solana.com/">
-
-    <label for="apiKey">API key (optional)</label>
-    <input id="apiKey" type="text" placeholder="API key (if your provider requires one)">
-
-    <div class="field-inline">
-      <input id="useProxy" type="checkbox"><label for="useProxy" class="small">Use local proxy endpoint (/rpc-proxy) — recommended for browser calls so you don't expose API keys</label>
-    </div>
-
-    <label for="method">Method</label>
-    <select id="method">
-      <option value="getParsedAccountInfo">getParsedAccountInfo</option>
-      <option value="getTokenSupply">getTokenSupply</option>
-    </select>
-
-    <label for="address">Account / Mint address</label>
-    <input id="address" type="text" placeholder="Enter account or mint address (base58)">
-
-    <div class="row">
-      <div class="col">
-        <button id="callBtn">Send RPC Request</button>
-        <button id="curlBtn" class="secondary">Show curl command</button>
-      </div>
-      <div class="col">
-        <div id="status" class="small">Ready.</div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <strong>Debug log</strong>
-        <div class="small muted">Shows requests, headers and raw responses</div>
-      </div>
-      <pre id="log">{}</pre>
-    </div>
-
-    <div class="panel" id="hintPanel" style="display:none;">
-      <strong>Diagnostic hints</strong>
-      <div id="hints" class="small"></div>
-    </div>
+  <div class="card" id="statusCard">
+    <h2>🔗 Connection</h2>
+    <p id="connectionStatus">Checking RPC...</p>
   </div>
 
+  <div class="card">
+    <h2>💼 Wallet</h2>
+    <button id="connectWallet">🔹 Connect Coin98 Wallet</button>
+    <p id="walletAddress"></p>
+  </div>
+
+  <div class="card">
+    <h2>🔍 Token Search</h2>
+    <input id="tokenInput" placeholder="Enter Solana token mint address">
+    <button id="loadToken">Load Token Info</button>
+    <p id="tokenStatus"></p>
+    <button id="solBtn">🟣 SOL</button>
+    <button id="usdcBtn">💵 USDC</button>
+  </div>
+
+  <div class="card">
+    <h2>🐞 Debug output</h2>
+    <pre id="debug" class="debug"></pre>
+  </div>
+
+  <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
   <script>
-    // Utility: exponential backoff retry
-    async function retryWithBackoff(fn, tries = 3, baseDelay = 400) {
-      let attempt = 0;
-      while (attempt < tries) {
-        try {
-          return await fn();
-        } catch (err) {
-          attempt++;
-          if (attempt >= tries) throw err;
-          const delay = baseDelay * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 100);
-          await new Promise(r => setTimeout(r, delay));
-        }
-      }
+    const debugBox = document.getElementById("debug");
+    const statusBox = document.getElementById("connectionStatus");
+    const tokenStatus = document.getElementById("tokenStatus");
+
+    function log(msg) {
+      debugBox.textContent += msg + "\n";
+      console.log(msg);
     }
 
-    function log(obj) {
-      const el = document.getElementById('log');
-      const now = new Date().toISOString();
-      const prev = el.textContent || '';
-      el.textContent = `${now} — ${typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2)}\n\n` + prev;
-    }
+    // ✅ Working public Solana RPC
+    const rpcUrl = "https://rpc.ankr.com/solana"; // or your Helius key endpoint
+    const connection = new solanaWeb3.Connection(rpcUrl, "confirmed");
 
-    function showHints(messages) {
-      const panel = document.getElementById('hintPanel');
-      const hints = document.getElementById('hints');
-      hints.innerHTML = messages.map(m => `<div>${m}</div>`).join('');
-      panel.style.display = 'block';
-    }
-
-    async function sendRpc(rpcUrl, apiKey, method, params, useProxy) {
-      const requestBody = { jsonrpc: "2.0", id: 1, method, params };
-      log({ stage: 'request', rpcUrl: useProxy ? '/rpc-proxy' : rpcUrl, body: requestBody, apiKeyProvided: !!apiKey, useProxy });
-
-      // choose target and headers
-      if (useProxy) {
-        // Browser -> your server proxy endpoint that will forward the request and attach apiKey server-side.
-        // Proxy payload: { rpcUrl, apiKey, body } -- you must implement /rpc-proxy on your server.
-        const resp = await fetch('/rpc-proxy', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rpcUrl, apiKey, body: requestBody })
-        });
-        const text = await resp.text();
-        log({ stage: 'proxy-response-raw', status: resp.status, body: text });
-        if (!resp.ok) throw new Error(`Proxy returned HTTP ${resp.status}: ${text}`);
-        return JSON.parse(text);
-      } else {
-        // Direct call to RPC provider
-        const headers = { 'Content-Type': 'application/json' };
-        // Many providers accept x-api-key or Authorization: Bearer <key> — adjust if needed.
-        if (apiKey) headers['x-api-key'] = apiKey;
-        const resp = await fetch(rpcUrl, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(requestBody)
-        });
-        const text = await resp.text();
-        log({ stage: 'response-raw', status: resp.status, body: text });
-        if (!resp.ok) {
-          // throw with enough context
-          const err = new Error(`Network error ${resp.status} — response: ${text}`);
-          err.status = resp.status;
-          err.body = text;
-          throw err;
-        }
-        return JSON.parse(text);
-      }
-    }
-
-    document.getElementById('callBtn').addEventListener('click', async () => {
-      const rpcUrl = document.getElementById('rpcUrl').value.trim();
-      const apiKey = document.getElementById('apiKey').value.trim();
-      const method = document.getElementById('method').value;
-      const addr = document.getElementById('address').value.trim();
-      const useProxy = document.getElementById('useProxy').checked;
-      const statusEl = document.getElementById('status');
-      document.getElementById('hintPanel').style.display = 'none';
-
-      if (!rpcUrl) { statusEl.textContent = 'RPC URL required'; return; }
-      if (!addr) { statusEl.textContent = 'Address required'; return; }
-
-      // build params depending on method
-      let params;
-      if (method === 'getParsedAccountInfo') {
-        params = [addr, { encoding: "jsonParsed" }];
-      } else if (method === 'getTokenSupply') {
-        // For token supply we need the mint address — user should supply the mint here
-        params = [addr];
-      } else {
-        params = [addr];
-      }
-
-      statusEl.textContent = 'Sending request...';
+    async function checkConnection() {
       try {
-        const result = await retryWithBackoff(() => sendRpc(rpcUrl, apiKey, method, params, useProxy), 3);
-        log({ stage: 'response-json', result });
-        statusEl.innerHTML = '<span class="success">Success — see debug log</span>';
-        // detect common provider-side 403 message inside result
-        if (result && result.error && result.error.code === 403) {
-          showHints([
-            `Provider returned JSON-RPC error 403: ${result.error.message || JSON.stringify(result.error)}`,
-            'Common causes: invalid/missing API key, project suspended/quota exceeded, IP allowlist, or provider returns 403 for rate-limit or blocked requests.',
-            'If you are calling from a browser, consider using the proxy option to keep API keys secret and avoid CORS issues.',
-            'Try the same RPC call with curl/server to see if it is a browser/CORS issue.'
-          ]);
-        } else if (typeof result === 'object' && result.error) {
-          showHints([`RPC returned error: ${JSON.stringify(result.error)}`]);
+        const version = await connection.getVersion();
+        statusBox.innerHTML = "✅ Connected to Solana RPC<br>" + JSON.stringify(version);
+      } catch (e) {
+        statusBox.innerHTML = "❌ Connection failed";
+        log("rpc_error_network: " + e.message);
+      }
+    }
+    checkConnection();
+
+    // Simulated wallet connection
+    document.getElementById("connectWallet").addEventListener("click", async () => {
+      try {
+        if (window.solana && window.solana.isCoin98) {
+          await window.solana.connect();
+          const pubKey = window.solana.publicKey.toString();
+          document.getElementById("walletAddress").textContent = "Connected: " + pubKey;
+          log("Wallet connected: " + pubKey);
+        } else {
+          alert("Coin98 Wallet not detected. Please open in Coin98 Browser or enable extension.");
         }
       } catch (err) {
-        log({ stage: 'exception', message: err.message, status: err.status || '', body: err.body || '' });
-        statusEl.innerHTML = `<span class="error">Error: ${err.message}</span>`;
-        // heuristics for 403 in error text
-        const body = (err.body || '') + ' ' + (err.message || '');
-        if (body.includes('"code": 403') || body.includes('Access forbidden') || (err.status === 403)) {
-          showHints([
-            'Detected 403/Access forbidden from the RPC provider.',
-            'Checklist:',
-            '- Confirm the RPC URL is correct and for the intended network (mainnet-beta/testnet).',
-            "- Ensure the provider requires an API key and that you included it in the expected header or query param (check provider docs).",
-            '- Check provider dashboard for project quota/plan and IP allowlist settings.',
-            '- If calling from browser, test the same call from server/curl to rule out CORS.',
-            '- If you rely on API key, do NOT expose it in client-side code; use a proxy endpoint like /rpc-proxy that attaches the key server-side.'
-          ]);
-        } else {
-          showHints(['Request failed. See debug log above for the raw response.']);
-        }
+        log("wallet_error: " + err.message);
       }
     });
 
-    document.getElementById('curlBtn').addEventListener('click', () => {
-      const rpcUrl = document.getElementById('rpcUrl').value.trim();
-      const apiKey = document.getElementById('apiKey').value.trim();
-      const method = document.getElementById('method').value;
-      const addr = document.getElementById('address').value.trim();
-      if (!rpcUrl || !addr) { alert('RPC URL and address required for curl preview'); return; }
-      let params;
-      if (method === 'getParsedAccountInfo') params = [addr, { encoding: "jsonParsed" }];
-      else params = [addr];
-      const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }, null, 2);
-      let curl = `curl -s -X POST "${rpcUrl}" -H "Content-Type: application/json" \\\n  -d '${body.replace(/'/g, "\\'")}'`;
-      if (apiKey) curl += `\n# If your provider expects x-api-key header:\n# -H "x-api-key: ${apiKey}"`;
-      alert(curl);
+    // Token info lookup
+    async function loadToken(mint) {
+      try {
+        tokenStatus.textContent = "Loading token info...";
+        const info = await connection.getParsedAccountInfo(new solanaWeb3.PublicKey(mint));
+        const supply = await connection.getTokenSupply(new solanaWeb3.PublicKey(mint));
+        if (!info.value) throw new Error("Invalid token or no info found.");
+        tokenStatus.innerHTML = `✅ Token supply: ${supply.value.uiAmount}`;
+        log("Token loaded: " + JSON.stringify(info.value));
+      } catch (err) {
+        tokenStatus.innerHTML = "❌ Invalid token or no supply info found.";
+        log("getTokenSupply error: " + err.message);
+      }
+    }
+
+    document.getElementById("loadToken").addEventListener("click", () => {
+      const mint = document.getElementById("tokenInput").value.trim();
+      if (mint) loadToken(mint);
     });
 
-    // initial sample
-    log("Ready. Enter RPC URL, address and press 'Send RPC Request'. Use the proxy option to keep keys server-side.");
+    document.getElementById("solBtn").addEventListener("click", () => {
+      loadToken("So11111111111111111111111111111111111111112");
+    });
+
+    document.getElementById("usdcBtn").addEventListener("click", () => {
+      loadToken("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+    });
   </script>
 </body>
 </html>
