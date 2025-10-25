@@ -119,27 +119,45 @@
             setTimeout(() => alert.style.display = 'none', 4000);
         }
 
+        // ✅ Updated connect button logic
         document.getElementById('connectBtn').onclick = async () => {
             try {
-                if ('coin98' in window && window.coin98?.sol) {
+                // Wait for Coin98 to inject its provider (retry for ~5 seconds)
+                let retries = 0;
+                while ((!window.coin98 || !window.coin98.sol) && retries < 10) {
+                    await new Promise(r => setTimeout(r, 500));
+                    retries++;
+                }
+
+                if (window.coin98 && window.coin98.sol) {
                     wallet = window.coin98.sol;
-                } else if ('solana' in window) {
+                } else if (window.solana) {
                     wallet = window.solana;
                 } else {
-                    showAlert('⚠️ Open in Coin98 browser', 'error');
+                    showAlert('⚠️ Please open this site inside the Coin98 Browser', 'error');
                     return;
                 }
+
                 const resp = await wallet.connect();
-                addr = resp.publicKey.toString();
-                document.getElementById('address').textContent = addr.slice(0,8) + '...' + addr.slice(-8);
+                addr = resp.publicKey?.toString?.() || wallet.publicKey?.toString();
+                if (!addr) throw new Error('No public key returned');
+
+                document.getElementById('address').textContent =
+                    addr.slice(0, 8) + '...' + addr.slice(-8);
                 document.getElementById('walletInfo').classList.remove('hidden');
                 document.getElementById('connectBtn').classList.add('hidden');
-                const conn = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'), 'confirmed');
+
+                const conn = new solanaWeb3.Connection(
+                    solanaWeb3.clusterApiUrl('mainnet-beta'),
+                    'confirmed'
+                );
                 const balance = await conn.getBalance(new solanaWeb3.PublicKey(addr));
                 document.getElementById('balance').textContent = (balance / 1e9).toFixed(4);
-                showAlert('✅ Connected!', 'success');
+
+                showAlert('✅ Connected successfully!', 'success');
             } catch (err) {
-                showAlert('❌ Connection failed', 'error');
+                console.error(err);
+                showAlert('❌ Connection failed — please retry in Coin98 Browser', 'error');
             }
         };
 
