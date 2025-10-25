@@ -124,16 +124,27 @@
       setTimeout(() => alert.style.display = 'none', 4000);
     }
 
-    // Connect Wallet
+    // Detect wallet provider
+    async function detectWallet() {
+      return new Promise(resolve => {
+        let tries = 0;
+        const timer = setInterval(() => {
+          if (window.coin98?.sol || (window.solana && (window.solana.isCoin98 || window.solana.isPhantom))) {
+            clearInterval(timer);
+            resolve(window.coin98?.sol || window.solana);
+          }
+          if (++tries > 10) {
+            clearInterval(timer);
+            resolve(null);
+          }
+        }, 500);
+      });
+    }
+
     document.getElementById('connectBtn').onclick = async () => {
       try {
-        if ('coin98' in window && window.coin98?.sol) {
-          wallet = window.coin98.sol;
-          showAlert('✅ Coin98 Wallet detected', 'success');
-        } else if ('solana' in window) {
-          wallet = window.solana;
-          showAlert('✅ Phantom or Solflare detected', 'info');
-        } else {
+        wallet = await detectWallet();
+        if (!wallet) {
           showAlert('⚠️ Please open in Coin98 browser', 'error');
           return;
         }
@@ -169,10 +180,10 @@
       if (!mint) return showAlert('Enter token mint address', 'error');
 
       try {
-        const priceRes = await fetch(`https://price.jup.ag/v6/price?mint=${mint}`);
-        const priceData = await priceRes.json();
+        const res = await fetch(`https://price.jup.ag/v6/price?ids=${mint}`);
+        const priceData = await res.json();
+        const data = priceData.data?.[mint];
 
-        const data = Object.values(priceData.data)[0];
         if (!data) {
           showAlert('Token not found or not supported', 'error');
           return;
@@ -180,12 +191,10 @@
 
         document.getElementById('tokenName').textContent = data.name || 'Unknown Token';
         document.getElementById('price').textContent = `$${data.price.toFixed(4)}`;
-
         const changeEl = document.getElementById('change');
         const change = data.priceChange24h || 0;
         changeEl.textContent = `24h: ${change.toFixed(2)}%`;
         changeEl.className = change >= 0 ? 'change-up' : 'change-down';
-
         document.getElementById('tokenAddr').textContent = mint;
         document.getElementById('tokenCard').classList.remove('hidden');
         showAlert('✅ Token info loaded!', 'success');
