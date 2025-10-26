@@ -3,24 +3,22 @@ const SOL_MINT = "So11111111111111111111111111111111111111112";
 const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 let selectedToken = USDC_MINT;
 
-// ---------------------------
-// Fetch Token Data + Chart
-// ---------------------------
 async function loadTokenInfo() {
+    const tokenAddress = document.getElementById("tokenAddress").value.trim();
+    if (!tokenAddress) return alert("Enter a token address.");
+
     try {
-        const tokenAddress = document.getElementById("tokenAddress").value.trim();
-        if (!tokenAddress) return alert("Enter a token address.");
+        console.log(`Fetching token info for ${tokenAddress}`);
+        const res = await fetch(`${BACKEND_URL}/api/token/${tokenAddress}`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+        });
 
-        console.log(`Fetching token info for: ${tokenAddress}`);
-        const res = await fetch(`${BACKEND_URL}/api/token/${tokenAddress}`);
-
-        if (!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
 
         const data = await res.json();
         const pair = data.pairs?.[0];
-        if (!pair) throw new Error("Token not found or missing pair data.");
+        if (!pair) throw new Error("No token data found.");
 
         document.getElementById("tokenName").innerText = `${pair.baseToken.symbol} • ${pair.chainId.toUpperCase()}`;
         document.getElementById("currentPrice").innerText = `$${parseFloat(pair.priceUsd).toFixed(6)}`;
@@ -33,16 +31,12 @@ async function loadTokenInfo() {
 
         renderPriceChart(chartData);
         selectedToken = tokenAddress;
-        console.log(`✅ Token loaded: ${tokenAddress}`);
     } catch (err) {
-        console.error("Token fetch error:", err);
-        alert(`Failed to fetch token info: ${err.message}`);
+        console.error("❌ Token fetch failed:", err);
+        alert(`Failed to fetch token data: ${err.message}`);
     }
 }
 
-// ---------------------------
-// Chart.js Rendering
-// ---------------------------
 function renderPriceChart(prices) {
     const ctx = document.getElementById("priceChart").getContext("2d");
     if (window.priceChart) window.priceChart.destroy();
@@ -55,7 +49,7 @@ function renderPriceChart(prices) {
         data: {
             labels: labels,
             datasets: [{
-                label: "24-Hour Price Trend",
+                label: "24h Price",
                 data: data,
                 borderWidth: 2,
                 borderColor: "#007aff",
@@ -91,70 +85,4 @@ function renderPriceChart(prices) {
     });
 }
 
-// ---------------------------
-// Buy / Sell Buttons
-// ---------------------------
-async function handleSwap(isBuy) {
-    const wallet = document.getElementById("wallet").value.trim();
-    const amountInput = document.getElementById("amount").value.trim();
-    const slippage = document.getElementById("slippage").value || "100";
-
-    if (!wallet) return alert("❌ Connect your wallet.");
-    if (!amountInput) return alert("❌ Enter an amount.");
-    if (wallet.length < 32) return alert("❌ Invalid wallet address.");
-
-    let amountLamports;
-    try {
-        amountLamports = Math.floor(parseFloat(amountInput) * 1e9);
-        if (amountLamports <= 0) return alert("❌ Amount must be greater than 0.");
-    } catch {
-        return alert("❌ Invalid amount format.");
-    }
-
-    const inputMint = isBuy ? SOL_MINT : selectedToken;
-    const outputMint = isBuy ? selectedToken : SOL_MINT;
-    const swapType = isBuy ? "Buy" : "Sell";
-
-    console.log(`\n🔄 Starting ${swapType} swap:`);
-    console.log(`Input: ${amountInput} (${amountLamports} lamports) of ${inputMint}`);
-    console.log(`Output: ${outputMint}`);
-    console.log(`Slippage: ${slippage} bps`);
-    console.log(`Wallet: ${wallet}`);
-
-    try {
-        // Step 1: Quote
-        const quoteUrl = `${BACKEND_URL}/api/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountLamports}&slippageBps=${slippage}`;
-        console.log("📡 Fetching quote:", quoteUrl);
-
-        const quoteRes = await fetch(quoteUrl);
-        if (!quoteRes.ok) throw new Error(`Quote fetch failed: ${quoteRes.status}`);
-        const quote = await quoteRes.json();
-        if (!quote.outAmount) throw new Error("Invalid quote response.");
-
-        // Step 2: Create Swap
-        const swapRes = await fetch(`${BACKEND_URL}/api/swap`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                quoteResponse: quote,
-                userPublicKey: wallet
-            })
-        });
-
-        if (!swapRes.ok) throw new Error(`Swap creation failed: ${swapRes.status}`);
-        const swapData = await swapRes.json();
-
-        const outAmount = (parseInt(quote.outAmount) / 1e9).toFixed(6);
-        alert(`✅ ${swapType} successful!\nYou will receive: ${outAmount} tokens\n\nTransaction prepared for your wallet.`);
-        console.log("✅ Swap transaction ready:", swapData);
-    } catch (err) {
-        console.error("❌ Swap error:", err);
-        alert(`❌ ${swapType} failed: ${err.message}`);
-    }
-}
-
-// ---------------------------
-// Export Functions
-// ---------------------------
 window.loadTokenInfo = loadTokenInfo;
-window.handleSwap = handleSwap;
