@@ -1,140 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Solana Dashboard • Swag Coin</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script defer src="script.js"></script>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: #fff;
-      color: #222;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin: 0;
-      padding: 30px;
-    }
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Solana Dashboard</title>
 
-    .container {
-      max-width: 420px;
-      width: 100%;
-      background: #fff;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-      border-radius: 16px;
-      padding: 20px;
-      text-align: center;
-    }
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    h1 {
-      font-size: 22px;
-      margin-bottom: 8px;
-    }
-
-    .token-info {
-      font-size: 15px;
-      color: #555;
-      margin-bottom: 8px;
-    }
-
-    .price {
-      font-size: 32px;
-      font-weight: 600;
-      color: #111;
-      margin: 4px 0;
-    }
-
-    .change {
-      font-size: 14px;
-      color: #28a745;
-      margin-bottom: 16px;
-    }
-
-    .chart-container {
-      position: relative;
-      width: 100%;
-      height: 280px;
-      margin-bottom: 16px;
-    }
-
-    .inputs {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-
-    input {
-      padding: 10px;
-      font-size: 15px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      outline: none;
-      text-align: center;
-    }
-
-    .buttons {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    button {
-      flex: 1;
-      padding: 12px;
-      font-size: 16px;
-      border: none;
-      border-radius: 10px;
-      color: #fff;
-      cursor: pointer;
-      font-weight: 600;
-    }
-
-    .buy {
-      background-color: #00c853;
-    }
-
-    .sell {
-      background-color: #d50000;
-    }
-
-    footer {
-      margin-top: 24px;
-      color: #888;
-      font-size: 13px;
-    }
-  </style>
+    <!-- Styles -->
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #0f1115;
+            color: white;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+        header {
+            padding: 20px;
+            background: #15171c;
+            font-size: 1.2em;
+            font-weight: bold;
+            border-bottom: 1px solid #1f1f1f;
+        }
+        .container {
+            padding: 20px;
+            max-width: 700px;
+            margin: auto;
+        }
+        input, button {
+            border: none;
+            outline: none;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            background: #1a1c22;
+            color: white;
+        }
+        button {
+            width: 48%;
+            padding: 12px;
+            background: #007aff;
+            color: white;
+            cursor: pointer;
+            margin-top: 10px;
+            font-weight: 600;
+        }
+        button:hover {
+            background: #005fcc;
+        }
+        #priceChart {
+            width: 100%;
+            height: 300px;
+            margin-top: 20px;
+        }
+        .token-info {
+            margin-top: 10px;
+        }
+        .price {
+            font-size: 1.4em;
+            margin-top: 5px;
+        }
+        .change {
+            color: #00c853;
+            font-weight: 600;
+        }
+        .change.negative {
+            color: #ff5252;
+        }
+    </style>
 </head>
+
 <body>
-  <div class="container">
-    <input id="tokenAddress" placeholder="Enter token address (e.g. FaxYQ3L...)" />
-    <button style="margin-top:10px;background:#007aff;color:white;padding:8px 12px;border-radius:8px;border:none;font-size:14px;" onclick="loadTokenInfo()">Load Token Info</button>
+    <header>💹 Solana Token Dashboard</header>
 
-    <h1 id="tokenName">swag coin (SWAG) • SOLANA</h1>
-    <div class="token-info">💵 Current Price (USD)</div>
-    <div class="price" id="currentPrice">$0.00</div>
-    <div class="change" id="change24h">0.00%</div>
+    <div class="container">
+        <input id="wallet" placeholder="Enter your Solana wallet address" />
 
-    <div class="chart-container">
-      <canvas id="priceChart"></canvas>
+        <input id="tokenAddress" placeholder="Enter token address (or paste a Solana token)" />
+        <button onclick="loadTokenInfo()">Load Token Info</button>
+
+        <div class="token-info">
+            <h3 id="tokenName">—</h3>
+            <div class="price" id="currentPrice">$0.00</div>
+            <div id="change24h" class="change">0%</div>
+        </div>
+
+        <canvas id="priceChart"></canvas>
+
+        <h3>Swap</h3>
+        <input id="amount" type="number" placeholder="Amount" />
+        <input id="slippage" type="number" placeholder="Slippage (bps, e.g. 100)" value="100" />
+
+        <div style="display:flex; justify-content:space-between;">
+            <button onclick="handleSwap(true)">Buy Token</button>
+            <button onclick="handleSwap(false)">Sell Token</button>
+        </div>
     </div>
 
-    <div class="inputs">
-      <input id="wallet" placeholder="Enter wallet address (public key)" />
-      <input id="amount" placeholder="Amount" />
-      <input id="slippage" placeholder="Slippage (bps)" value="100" />
-    </div>
-
-    <div class="buttons">
-      <button class="buy" onclick="handleSwap(true)">Buy</button>
-      <button class="sell" onclick="handleSwap(false)">Sell</button>
-    </div>
-  </div>
-
-  <footer>
-    huggingface.co
-  </footer>
+    <script src="./script.js"></script>
 </body>
 </html>
